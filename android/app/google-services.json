@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "478560585618",
+    "project_id": "pt-art-d22b7",
+    "storage_bucket": "pt-art-d22b7.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:478560585618:android:f1a77bb5583291b2c1634b",
+        "android_client_info": {
+          "package_name": "com.example.art"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "478560585618-c0gs1lvbvcm6524upchi16jntnbceacd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlt7qvCdk7D1oPlrt1T9I7bsh09rkU-xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "478560585618-c0gs1lvbvcm6524upchi16jntnbceacd.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "478560585618-bjshjor3snnh34leek0bpdetvh51q2fp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ir7.art"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:478560585618:android:828484d45e23ef64c1634b",
+        "android_client_info": {
+          "package_name": "com.ir7.art"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "478560585618-c0gs1lvbvcm6524upchi16jntnbceacd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlt7qvCdk7D1oPlrt1T9I7bsh09rkU-xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "478560585618-c0gs1lvbvcm6524upchi16jntnbceacd.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "478560585618-bjshjor3snnh34leek0bpdetvh51q2fp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ir7.art"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
