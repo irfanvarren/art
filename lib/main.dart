@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:animations/animations.dart';
 import 'package:art/constants.dart';
 import 'package:art/routes.dart';
-import 'package:art/layout/adaptive.dart';
 import 'package:art/pages/price_quote_add_page.dart';
 import 'package:art/data/options.dart';
 import 'package:art/data/firebase_options.dart';
@@ -18,6 +17,9 @@ import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:art/model/price_quote_model.dart';
 import 'package:art/model/price_quote_store.dart';
+import 'dart:async';
+import 'package:flutter_background/flutter_background.dart' as background;
+import 'package:workmanager/workmanager.dart';
 
 void main() async {
   GoogleFonts.config.allowRuntimeFetching = false;

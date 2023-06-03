@@ -50,6 +50,8 @@ dependencies:
   dropdown_search: ^5.0.6
   debounce_throttle: ^2.0.0
   uuid: ^3.0.7
+  flutter_background: ^1.2.0
+  workmanager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
