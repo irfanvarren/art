@@ -1,7 +1,7 @@
-import 'package:art/main.dart';
 import 'package:art/layout/adaptive.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -18,28 +18,43 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         errorMessage = 'Please enter both username and password.';
       });
-      return;
+      // /  return;
     }
-    errorMessage = '';
-
+    setState(() {
+      errorMessage = '';
+    });
     String username = _usernameController.text.trim();
     String password = _passwordController.text.trim();
     String storedPassword = '';
-    await initializeFirebase();
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(username)
-        .get();
-    if (snapshot.exists) {
-      storedPassword = snapshot['password'];
+
+    final String url =
+        'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/users/${username}';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        // Request successful, parse the response body
+        final data = jsonDecode(response.body);
+        storedPassword = data['fields']['password']['stringValue'];
+        // Process the data as needed
+        // ...
+      } else {
+        // Request failed, handle the error
+        print('Request failed with status code: ${response.statusCode}' +
+            response.body);
+      }
+    } catch (error) {
+      // Error occurred while making the request
+      print('Error: $error');
     }
 
     if (storedPassword == '') {
       setState(() {
         errorMessage = 'Invalid username.';
       });
-      return;
     }
+
     if (storedPassword != '' && password == storedPassword) {
       Navigator.push(
         context,
