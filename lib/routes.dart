@@ -12,6 +12,8 @@ import 'package:art/pages/price_quote_add_page.dart'
     deferred as price_quote_add_page;
 import 'package:art/pages/login.dart' as login_page;
 
+import 'package:art/pages/upload_clients.dart' as upload_clients;
+
 //import 'package:art/pages/home.dart';
 
 const String composeRoute = '/price-quote-add';
@@ -69,6 +71,11 @@ class RouteConfiguration {
         ),
       ),
       openInSecondScreen: true,
+    ),
+    Path(
+      r'^/upload-clients',
+      (context, match) => upload_clients.UploadClientPage(),
+      openInSecondScreen: false,
     ),
     Path(
       r'^/',
