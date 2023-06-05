@@ -74,7 +74,7 @@ class RouteConfiguration {
     ),
     Path(
       r'^/upload-clients',
-      (context, match) => upload_clients.UploadClientPage(),
+      (context, match) => upload_clients.UploadClientsPage(),
       openInSecondScreen: false,
     ),
     Path(
