@@ -20,7 +20,7 @@ class Email {
     this.selesai = false,
   });
   final String id;
-  final DocumentReference<Map<String, dynamic>>? klien;
+  final String? klien;
   final List<dynamic> barang;
   final Timestamp? tglBuat;
   final Timestamp? tglEdit;

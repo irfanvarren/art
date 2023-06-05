@@ -10,6 +10,8 @@ import 'package:art/model/price_quote_store.dart';
 import 'package:art/main.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'dart:async';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 //import 'package:provider/provider.dart';
 typedef StreamCallback = void Function(
@@ -98,42 +100,121 @@ class _MailboxBodyState extends State<MailboxBody> {
   void getStream(
       String destination, Client? filterClient, String? filterBarang) async {
     Stream<QuerySnapshot<dynamic>> myStream;
-
+    print('getStream');
+    String url;
+    Map<String, dynamic>? requestData = null;
     if (widget.destination == 'clients') {
-      myStream =
-          await FirebaseFirestore.instance.collection('clients').snapshots();
+      url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/clients';
+      requestData = null;
     } else if (widget.destination == 'prioritas') {
-      myStream = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .where('selesai', isEqualTo: false)
-          .where('prioritas', isEqualTo: true)
-          .snapshots();
-    } else if (widget.destination == 'done') {
-      myStream = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .where('selesai', isEqualTo: true)
-          .snapshots();
-    } else {
-      myStream = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .where('selesai', isEqualTo: false)
-          .snapshots();
-    }
-    //return
+      url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents:runQuery';
 
-    myStream.forEach((QuerySnapshot snapshot) {
+      requestData = {
+        'structuredQuery': {
+          'from': [
+            {'collectionId': 'price_quotes'}
+          ],
+          'where': {
+            'compositeFilter': {
+              'op': 'AND',
+              'filters': [
+                {
+                  'fieldFilter': {
+                    'field': {'fieldPath': 'selesai'},
+                    'op': 'EQUAL',
+                    'value': {'booleanValue': false}
+                  }
+                },
+                {
+                  'fieldFilter': {
+                    'field': {'fieldPath': 'prioritas'},
+                    'op': 'EQUAL',
+                    'value': {'booleanValue': true}
+                  }
+                }
+              ]
+            }
+          }
+        }
+      };
+    } else if (widget.destination == 'done') {
+      url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents:runQuery';
+
+      requestData = {
+        'structuredQuery': {
+          'from': [
+            {'collectionId': 'price_quotes'}
+          ],
+          'where': {
+            'fieldFilter': {
+              'field': {'fieldPath': 'selesai'},
+              'op': 'EQUAL',
+              'value': {'booleanValue': true}
+            }
+          }
+        }
+      };
+    } else {
+      url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents:runQuery';
+
+      requestData = {
+        'structuredQuery': {
+          'from': [
+            {'collectionId': 'price_quotes'}
+          ],
+          'where': {
+            'fieldFilter': {
+              'field': {'fieldPath': 'selesai'},
+              'op': 'EQUAL',
+              'value': {'booleanValue': false}
+            }
+          }
+        }
+      };
+    }
+    http.Response response;
+    // print(requestData);
+    if (requestData != null) {
+      response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestData),
+      );
+    } else {
+      response = await http.get(Uri.parse(url));
+    }
+    List<dynamic> responseList = [];
+    if (response.statusCode == 200) {
       Map<String, dynamic> allObjects = {};
-      allObjects['key'] = UniqueKey();
+      // Request successful, parse the response body
+      // print(response.body);
+      dynamic data = jsonDecode(response.body);
+
+      if (data is List) {
+        responseList = data;
+      } else {
+        data = data as Map<String, dynamic>;
+        if (data.containsKey('documents')) {
+          responseList = data['documents'];
+        } else {
+          print('not add');
+          streamController.add(allObjects);
+        }
+      }
+
       if (widget.destination == 'clients') {
         List<Client> clients = [];
-
-        snapshot.docs.forEach((DocumentSnapshot document) {
+        responseList.forEach((element) {
           Client client = Client(
-            id: document.id,
-            namaKlien: document['nama_klien'],
-            email: document['email'],
-            noHp: document['no_hp'],
-            alamat: document['alamat'],
+            id: element['name'].split('/').last,
+            namaKlien: element['fields']['nama_klien']['stringValue'],
+            email: element['fields']['email']['stringValue'],
+            noHp: element['fields']['no_hp']['stringValue'],
+            alamat: element['fields']['alamat']['stringValue'],
           );
           if (filterClient != null) {
             if (client.id == filterClient!.id) {
@@ -146,52 +227,196 @@ class _MailboxBodyState extends State<MailboxBody> {
         allObjects['data'] = clients;
 
         //return allObjects;
-        streamController.add(allObjects);
       } else {
-        Map<String, dynamic> allObjects = {};
         List<dynamic> price_quotes = [];
-        snapshot.docs.forEach((DocumentSnapshot document) {
-          Email price_quote = Email(
-            id: document.id,
-            namaBarang: document['nama_barang'],
-            barang: document['barang'] as List<dynamic>,
-            catatan: document['catatan'],
-            klien: document['klien'] as DocumentReference<Map<String, dynamic>>,
-            tglBuat: document['tgl_buat'],
-            tglNotifikasi: document['tgl_notifikasi'],
-            selesai: document['selesai'],
-            prioritas: document['prioritas'],
-          );
-          if (filterClient != null && filterBarang != null) {
-            if (price_quote.klien!.id == filterClient.id &&
-                price_quote.namaBarang
+        print('responselist');
+        print(responseList);
+        responseList.forEach((element) {
+          if (element != null) {
+            print('element');
+            print(element);
+            Map<String, dynamic> fields;
+            String price_quote_id = '';
+            if ((requestData != null)) {
+              if ((element as Map<String, dynamic>).containsKey('document')) {
+                fields = element['document']['fields'];
+                price_quote_id = element['document']['name'].split('/').last;
+              } else {
+                fields = {};
+              }
+            } else {
+              fields = element['fields'];
+              price_quote_id = element['name'].split('/').last;
+            }
+            //print(fields['barang']['arrayValue']);
+
+            List<Map<String, dynamic>> barang = [];
+            print(fields);
+            if (fields.containsKey('barang') &&
+                fields['barang'].containsKey('arrayValue')) {
+              //print(fields['barang']['arrayValue']['values']);
+              if (fields['barang']['arrayValue'] != {}) {
+                List<dynamic> values =
+                    (fields['barang']['arrayValue']['values']) ?? [];
+                for (var value in values) {
+                  if (value.containsKey('mapValue') &&
+                      value['mapValue'].containsKey('fields')) {
+                    Map<String, dynamic> fields = value['mapValue']['fields'];
+                    Map<String, dynamic> updatedBarang = {};
+                    for (var entry in fields.entries) {
+                      String key = entry.key;
+                      dynamic value = entry.value.values.first;
+                      updatedBarang[key] = value;
+                    }
+                    barang.add(updatedBarang);
+                  }
+                }
+              }
+            }
+            print('fields');
+            print(fields);
+            if (fields.isNotEmpty) {
+              Email price_quote = Email(
+                id: price_quote_id,
+                namaBarang: fields['nama_barang']['stringValue'],
+                barang: barang,
+                catatan: fields['catatan']['stringValue'],
+                klien: fields['klien']['referenceValue'].split('/').last,
+                tglBuat: Timestamp.fromDate(
+                    DateTime.parse(fields['tgl_buat']['timestampValue'])),
+                tglNotifikasi: Timestamp.fromDate(
+                    DateTime.parse(fields['tgl_notifikasi']['timestampValue'])),
+                selesai: fields['selesai']['booleanValue'],
+                prioritas: fields['prioritas']['booleanValue'],
+              );
+
+              if (filterClient != null && filterBarang != null) {
+                if (price_quote.klien == filterClient.id &&
+                    price_quote.namaBarang
+                        .toLowerCase()
+                        .contains(filterBarang.toLowerCase())) {
+                  price_quotes.add(price_quote);
+                }
+              } else if (filterClient != null) {
+                if (price_quote.klien == filterClient.id) {
+                  price_quotes.add(price_quote);
+                }
+              } else if (filterBarang != null) {
+                if (price_quote.namaBarang
                     .toLowerCase()
                     .contains(filterBarang.toLowerCase())) {
-              price_quotes.add(price_quote);
+                  price_quotes.add(price_quote);
+                }
+              } else {
+                price_quotes.add(price_quote);
+              }
             }
-          } else if (filterClient != null) {
-            if (price_quote.klien!.id == filterClient.id) {
-              price_quotes.add(price_quote);
-            }
-          } else if (filterBarang != null) {
-            if (price_quote.namaBarang
-                .toLowerCase()
-                .contains(filterBarang.toLowerCase())) {
-              price_quotes.add(price_quote);
-            }
-          } else {
-            price_quotes.add(price_quote);
           }
         });
+
         allObjects['data'] = price_quotes;
-
-        List<Client> clients = [];
-
-        allObjects['clients'] = clients;
-        //return allObjects;
-        streamController.add(allObjects);
       }
-    });
+      print('add');
+      print(allObjects);
+      streamController.add(allObjects);
+    } else {
+      // Request failed, handle the error
+      print('Request failed with status code: ${response.statusCode}' +
+          response.body);
+    }
+    // if (widget.destination == 'clients') {
+    //   myStream =
+    //       await FirebaseFirestore.instance.collection('clients').snapshots();
+    // } else if (widget.destination == 'prioritas') {
+    //   myStream = await FirebaseFirestore.instance
+    //       .collection('price_quotes')
+    //       .where('selesai', isEqualTo: false)
+    //       .where('prioritas', isEqualTo: true)
+    //       .snapshots();
+    // } else if (widget.destination == 'done') {
+    //   myStream = await FirebaseFirestore.instance
+    //       .collection('price_quotes')
+    //       .where('selesai', isEqualTo: true)
+    //       .snapshots();
+    // } else {
+    //   myStream = await FirebaseFirestore.instance
+    //       .collection('price_quotes')
+    //       .where('selesai', isEqualTo: false)
+    //       .snapshots();
+    // }
+    // //return
+
+    // myStream.forEach((QuerySnapshot snapshot) {
+    //   Map<String, dynamic> allObjects = {};
+    //   allObjects['key'] = UniqueKey();
+    //   if (widget.destination == 'clients') {
+    //     List<Client> clients = [];
+
+    //     snapshot.docs.forEach((DocumentSnapshot document) {
+    //       Client client = Client(
+    //         id: document.id,
+    //         namaKlien: document['nama_klien'],
+    //         email: document['email'],
+    //         noHp: document['no_hp'],
+    //         alamat: document['alamat'],
+    //       );
+    //       if (filterClient != null) {
+    //         if (client.id == filterClient!.id) {
+    //           clients.add(client);
+    //         }
+    //       } else {
+    //         clients.add(client);
+    //       }
+    //     });
+    //     allObjects['data'] = clients;
+
+    //     //return allObjects;
+    //     streamController.add(allObjects);
+    //   } else {
+    //     Map<String, dynamic> allObjects = {};
+    //     List<dynamic> price_quotes = [];
+    //     snapshot.docs.forEach((DocumentSnapshot document) {
+    //       Email price_quote = Email(
+    //         id: document.id,
+    //         namaBarang: document['nama_barang'],
+    //         barang: document['barang'] as List<dynamic>,
+    //         catatan: document['catatan'],
+    //         klien: document['klien'] as DocumentReference<Map<String, dynamic>>,
+    //         tglBuat: document['tgl_buat'],
+    //         tglNotifikasi: document['tgl_notifikasi'],
+    //         selesai: document['selesai'],
+    //         prioritas: document['prioritas'],
+    //       );
+    //       if (filterClient != null && filterBarang != null) {
+    //         if (price_quote.klien!.id == filterClient.id &&
+    //             price_quote.namaBarang
+    //                 .toLowerCase()
+    //                 .contains(filterBarang.toLowerCase())) {
+    //           price_quotes.add(price_quote);
+    //         }
+    //       } else if (filterClient != null) {
+    //         if (price_quote.klien!.id == filterClient.id) {
+    //           price_quotes.add(price_quote);
+    //         }
+    //       } else if (filterBarang != null) {
+    //         if (price_quote.namaBarang
+    //             .toLowerCase()
+    //             .contains(filterBarang.toLowerCase())) {
+    //           price_quotes.add(price_quote);
+    //         }
+    //       } else {
+    //         price_quotes.add(price_quote);
+    //       }
+    //     });
+    //     allObjects['data'] = price_quotes;
+
+    //     List<Client> clients = [];
+
+    //     allObjects['clients'] = clients;
+    //     //return allObjects;
+    //     streamController.add(allObjects);
+    //   }
+    // });
   }
 
   List<Client> mapDocumentSnapshotsToUsers(List<DocumentSnapshot> snapshots) {
@@ -247,7 +472,7 @@ class _MailboxBodyState extends State<MailboxBody> {
             return CircularProgressIndicator();
           }
           if (streamSnapshot.connectionState == ConnectionState.active) {
-            if (streamSnapshot.hasData) {
+            if (streamSnapshot.hasData && streamSnapshot.data!.isNotEmpty) {
               // Access the documents from the snapshot
 
               List<Client> clientSearchItems = [];
@@ -353,20 +578,62 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
     super.didUpdateWidget(oldWidget);
   }
 
+  Future<Map<String, dynamic>> getClient(String? idKlien) async {
+    Map<String, dynamic> data = {'nama_klien': ''};
+    if (idKlien != null) {
+      String url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/clients/$idKlien';
+      http.Response response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+        data['nama_klien'] =
+            responseBody['fields']['nama_klien']['stringValue'];
+      } else {
+        // Request failed, handle the error
+        print('Request failed with status code: ${response.statusCode}' +
+            response.body);
+      }
+    } else {}
+    return data;
+  }
+
   Future<void> doneEmail(String documentId) async {
-    try {
-      // Get a reference to the document you want to update
-      DocumentReference documentReference =
-          FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
-
-      // Update the document with the new data
-      await documentReference.update({'selesai': true});
-      widget.triggerStreamBuilder(destination, filterClient, filterBarang);
-
-      print('Data berhasil disimpan');
-    } catch (e) {
-      print('Error !');
+    String getUrl =
+        'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+    http.Response response = await http.get(Uri.parse(getUrl));
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      print(responseBody['fields']);
+      final String url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+      final Map<String, dynamic> data = responseBody['fields'];
+      data['selesai'] = {'booleanValue': true};
+      final requestBody = json.encode({'fields': data});
+      final responseUpdate =
+          await http.patch(Uri.parse(url), body: requestBody);
+      if (responseUpdate.statusCode == 200) {
+        widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+        print('Data berhasil disimpan');
+      } else {
+        print('Error !');
+      }
+    } else {
+      print('Request failed with status code: ${response.statusCode}' +
+          response.body);
     }
+    // try {
+    //   // Get a reference to the document you want to update
+    //   DocumentReference documentReference =
+    //       FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
+
+    //   // Update the document with the new data
+    //   await documentReference.update({'selesai': true});
+    //   widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+
+    //   print('Data berhasil disimpan');
+    // } catch (e) {
+    //   print('Error !');
+    // }
   }
 
   Future<void> deleteEmail(String documentId) async {
@@ -384,20 +651,31 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
           ),
           TextButton(
             onPressed: () async {
-              try {
-                // Get a reference to the document you want to update
-                DocumentReference documentReference = FirebaseFirestore.instance
-                    .collection('price_quotes')
-                    .doc(documentId);
+              final String url =
+                  'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
 
-                // Update the document with the new data
-                await documentReference.delete();
+              final response = await http.delete(Uri.parse(url));
+              if (response.statusCode == 200) {
                 widget.triggerStreamBuilder(
                     destination, filterClient, filterBarang);
                 print('Data berhasil disimpan');
-              } catch (e) {
+              } else {
                 print('Error !');
               }
+              // try {
+              //   // Get a reference to the document you want to update
+              //   DocumentReference documentReference = FirebaseFirestore.instance
+              //       .collection('price_quotes')
+              //       .doc(documentId);
+
+              //   // Update the document with the new data
+              //   await documentReference.delete();
+              //   widget.triggerStreamBuilder(
+              //       destination, filterClient, filterBarang);
+              //   print('Data berhasil disimpan');
+              // } catch (e) {
+              //   print('Error !');
+              // }
               Navigator.of(context).pop();
             },
             child: Text('Ya'),
@@ -450,34 +728,95 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
 
   Future<void> unstarEmail(
       String documentId, Client? client, String barang) async {
-    try {
-      // Get a reference to the document you want to update
-      DocumentReference documentReference =
-          FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
-
-      // Update the document with the new data
-      await documentReference.update({'prioritas': false});
-      widget.triggerStreamBuilder(destination, client, barang);
-      print('Data berhasil disimpan');
-    } catch (e) {
-      print('Error !');
+    String getUrl =
+        'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+    http.Response response = await http.get(Uri.parse(getUrl));
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      print(responseBody['fields']);
+      final String url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+      final Map<String, dynamic> data = responseBody['fields'];
+      data['prioritas'] = {'booleanValue': false};
+      final requestBody = json.encode({'fields': data});
+      final responseUpdate =
+          await http.patch(Uri.parse(url), body: requestBody);
+      if (responseUpdate.statusCode == 200) {
+        widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+        print('Data berhasil disimpan');
+      } else {
+        print('Error !');
+      }
+    } else {
+      print('Request failed with status code: ${response.statusCode}' +
+          response.body);
     }
+    // try {
+    //   // Get a reference to the document you want to update
+    //   DocumentReference documentReference =
+    //       FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
+
+    //   // Update the document with the new data
+    //   await documentReference.update({'prioritas': false});
+    //   widget.triggerStreamBuilder(destination, client, barang);
+    //   print('Data berhasil disimpan');
+    // } catch (e) {
+    //   print('Error !');
+    // }
   }
 
   Future<void> starEmail(
       String documentId, Client? client, String barang) async {
-    try {
-      // Get a reference to the document you want to update
-      DocumentReference documentReference =
-          FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
-
-      // Update the document with the new data
-      await documentReference.update({'prioritas': true});
-      widget.triggerStreamBuilder(destination, filterClient, filterBarang);
-      print('Data berhasil disimpan');
-    } catch (e) {
-      print('Error !');
+    String getUrl =
+        'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+    http.Response response = await http.get(Uri.parse(getUrl));
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      print(responseBody['fields']);
+      final String url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+      final Map<String, dynamic> data = responseBody['fields'];
+      data['prioritas'] = {'booleanValue': true};
+      final requestBody = json.encode({'fields': data});
+      final responseUpdate =
+          await http.patch(Uri.parse(url), body: requestBody);
+      if (responseUpdate.statusCode == 200) {
+        widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+        print('Data berhasil disimpan');
+      } else {
+        print('Error !');
+      }
+    } else {
+      print('Request failed with status code: ${response.statusCode}' +
+          response.body);
     }
+    // final String url =
+    //     'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$documentId';
+    // final Map<String, dynamic> data = {
+    //   'prioritas': {'booleanValue': true},
+    // };
+    // final requestBody = json.encode({'fields': data});
+    // final response = await http.patch(Uri.parse(url), body: requestBody);
+
+    // if (response.statusCode == 200) {
+    //   widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+    //   print('Data berhasil disimpan');
+    // } else {
+    //   print('Error !');
+    // }
+    // try {
+    //   // Get a reference to the document you want to update
+    //   DocumentReference documentReference =
+    //       FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
+
+    //   // Update the document with the new data
+    //   await documentReference.update({'prioritas': true});
+
+    //   widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+    //   print('Data berhasil disimpan');
+    // } catch (e) {
+    //   print('Error !');
+    // }
   }
 
   Future<void> openEditPage(
@@ -538,8 +877,7 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
         filteredDataList = filteredDataList
             .where((data) =>
                 (data as Email)
-                    .klien!
-                    .id /* (data.klien as DocumentReference<Map<String, dynamic>>?)!.id*/ ==
+                    .klien! /*.id  (data.klien as DocumentReference<Map<String, dynamic>>?)!.id*/ ==
                 client!.id)
             .toList();
       }
@@ -681,7 +1019,7 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
             children: [
               Container(
                 padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-                child: FutureBuilder<QuerySnapshot>(
+                /*  child: FutureBuilder<QuerySnapshot>(
                   future:
                       FirebaseFirestore.instance.collection('clients').get(),
                   builder: (context, snapshot) {
@@ -755,6 +1093,7 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                     }
                   },
                 ),
+            */
               ),
               Container(
                 padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -856,18 +1195,18 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                         .toList();
                     String namaBarang = mappedList.join(', ');
 
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: priceQuote.klien!.get(),
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: getClient(priceQuote.klien),
                       builder: (context, klienSnapshot) {
                         if (klienSnapshot.connectionState ==
                             ConnectionState.waiting) {
                           return Container();
                         } else if (klienSnapshot.hasData) {
-                          DocumentSnapshot klienSnapshotData =
-                              klienSnapshot.data!;
+                          // DocumentSnapshot klienSnapshotData =
+                          //     klienSnapshot.data!;
 
                           // Access the data from klienSnapshot
-                          String namaKlien = klienSnapshotData['nama_klien'];
+                          String namaKlien = klienSnapshot.data!['nama_klien'];
                           priceQuote.namaKlien = namaKlien;
 
                           // Email priceQuote = Email(

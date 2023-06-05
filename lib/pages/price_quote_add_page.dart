@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ComposePage extends StatefulWidget {
   final bool? isEdit;
@@ -51,7 +53,7 @@ class _ComposePageState extends State<ComposePage> {
     super.initState();
     isEdit = isEditNull ?? false;
     isRepost = isRepostNull ?? false;
-    editId = editIdNull!;
+    editId = editIdNull ?? '';
   }
 
   Future<void> initializeNotification() async {
@@ -101,22 +103,33 @@ class _ComposePageState extends State<ComposePage> {
     );
   }
 
-  void _submitForm(BuildContext context, bool isEdit, String editId) {
+  void _submitForm(BuildContext context, bool isEdit, String editId) async {
     //scheduleNotification();
     // Form is valid, proceed with data submission
 
     // Get the form values
-    DocumentReference klienRef =
-        FirebaseFirestore.instance.collection('clients').doc(selectedClientRef);
-
+    String klienRef = '';
+    if (selectedClientRef != '') {
+      klienRef =
+          "projects/pt-art-d22b7/databases/(default)/documents/clients/$selectedClientRef";
+    }
     String namaKlien = selectedClientName;
     String namaBarang = _namaBarangController.text;
     String jumlahBarang = _jumlahBarangController.text;
     String satuan = _satuanController.text;
     String catatan = _catatanController.text;
-    List<Map<String, dynamic>> productMaps =
-        products.map((product) => product.toMap()).toList();
-
+    List<Map<String, dynamic>> productMaps = products.map((product) {
+      return {
+        "mapValue": {
+          "fields": {
+            'nama_barang': {'stringValue': product.namaBarang},
+            'jumlah_barang': {'integerValue': product.jumlahBarang},
+            'satuan': {'stringValue': product.satuan}
+          }
+        }
+      };
+    }).toList();
+    print({"values": productMaps});
     if (isEdit) {
       List<String> mappedList = products
           .map(
@@ -130,62 +143,120 @@ class _ComposePageState extends State<ComposePage> {
           .toList();
       String namaBarangJoin = mappedList.join(', ');
       Map<String, dynamic> dataUpdate = {};
-      if (isRepost) {
-        String namaBarangJoin = mappedList.join(', ');
+      // if (isRepost) {
+      //   String namaBarangJoin = mappedList.join(', ');
 
-        DateTime currentDateTime = Timestamp.now().toDate();
+      //   DateTime currentDateTime = Timestamp.now().toDate();
 
-        DateTime newDateTime = currentDateTime.add(Duration(days: 7));
+      //   DateTime newDateTime = currentDateTime.add(Duration(days: 7));
 
-        Timestamp tglNotifikasi = Timestamp.fromDate(newDateTime);
+      //   Timestamp tglNotifikasi = Timestamp.fromDate(newDateTime);
 
-        dataUpdate = {
-          'klien': klienRef,
-          'nama_klien': namaKlien,
-          'nama_barang': namaBarangJoin,
-          'barang': productMaps,
-          'catatan': catatan,
-          'selesai': false,
-          'prioritas': false,
-          'tgl_buat': Timestamp.now(),
-          'tgl_notifikasi': tglNotifikasi
+      //   dataUpdate = {
+      //     'klien': klienRef,
+      //     'nama_klien': namaKlien,
+      //     'nama_barang': namaBarangJoin,
+      //     'barang': productMaps,
+      //     'catatan': catatan,
+      //     'selesai': false,
+      //     'prioritas': false,
+      //     'tgl_buat': Timestamp.now(),
+      //     'tgl_notifikasi': tglNotifikasi
+      //   };
+      // } else {
+      //   dataUpdate = {
+      //     'klien': klienRef,
+      //     'nama_klien': namaKlien,
+      //     'nama_barang': namaBarangJoin,
+      //     'barang': productMaps,
+      //     'catatan': catatan,
+      //   };
+      // }
+
+      String getUrl =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$editId';
+      http.Response response = await http.get(Uri.parse(getUrl));
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+
+        final String urlUpdate =
+            'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$editId';
+        final Map<String, dynamic> data = responseBody['fields'];
+        data['klien'] = {
+          'referenceValue':
+              "projects/pt-art-d22b7/databases/(default)/documents/clients/$klienRef"
         };
-      } else {
-        dataUpdate = {
-          'klien': klienRef,
-          'nama_klien': namaKlien,
-          'nama_barang': namaBarangJoin,
-          'barang': productMaps,
-          'catatan': catatan,
-        };
-      }
-      FirebaseFirestore.instance
-          .collection('price_quotes')
-          .doc(editId)
-          .update(dataUpdate)
-          .then((_) {
-        // Clear the form fields after successful submission
-        DropdownSearchState<int>? dropdownState =
-            _clientDropdownKey.currentState;
-        if (dropdownState != null) {
-          dropdownState.clear();
-          // ...
+        data['nama_klien'] = {'stringValue': namaKlien};
+        data['nama_barang'] = {'stringValue': namaBarangJoin};
+        //data['barang'] = klienRef;
+        //  'barang': {
+        //   'arrayValue': {"values": productMaps}
+        // },
+        data['catatan'] = {'stringValue': catatan};
+
+        final requestBody = json.encode({'fields': data});
+        print('requestBody');
+        print(requestBody);
+        final responseUpdate =
+            await http.patch(Uri.parse(urlUpdate), body: requestBody);
+
+        if (responseUpdate.statusCode == 200) {
+          print('Data berhasil disimpan');
+          DropdownSearchState<int>? dropdownState =
+              _clientDropdownKey.currentState;
+          if (dropdownState != null) {
+            dropdownState.clear();
+            // ...
+          }
+          _namaBarangController.clear();
+          _jumlahBarangController.clear();
+          _catatanController.clear();
+          _satuanController.clear();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Data berhasil diubah !')),
+          );
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error, terjadi kesalahan saat mengubah data')),
+          );
         }
-        _namaBarangController.clear();
-        _jumlahBarangController.clear();
-        _catatanController.clear();
-        _satuanController.clear();
+      } else {
+        print('Request failed with status code: ${response.statusCode}' +
+            response.body);
+      }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Data berhasil diubah !')),
-        );
-        Navigator.of(context).pop();
-      }).catchError((error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Error, terjadi kesalahan saat mengubah data')),
-        );
-      });
+      //final response = await http.post(Uri.parse(url), body: body);
+
+      // FirebaseFirestore.instance
+      //     .collection('price_quotes')
+      //     .doc(editId)
+      //     .update(dataUpdate)
+      //     .then((_) {
+      //   // Clear the form fields after successful submission
+      //   DropdownSearchState<int>? dropdownState =
+      //       _clientDropdownKey.currentState;
+      //   if (dropdownState != null) {
+      //     dropdownState.clear();
+      //     // ...
+      //   }
+      //   _namaBarangController.clear();
+      //   _jumlahBarangController.clear();
+      //   _catatanController.clear();
+      //   _satuanController.clear();
+
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(content: Text('Data berhasil diubah !')),
+      //   );
+      //   Navigator.of(context).pop();
+      // }).catchError((error) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //         content: Text('Error, terjadi kesalahan saat mengubah data')),
+      //   );
+      // });
     } else {
       // Create a new document in Firestore
       List<String> mappedList = products
@@ -205,19 +276,32 @@ class _ComposePageState extends State<ComposePage> {
       DateTime newDateTime = currentDateTime.add(Duration(days: 7));
 
       Timestamp tglNotifikasi = Timestamp.fromDate(newDateTime);
+      final url =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes';
 
-      FirebaseFirestore.instance.collection('price_quotes').add({
-        'klien': klienRef,
-        'nama_klien': namaKlien,
-        'nama_barang': namaBarangJoin,
-        'barang': productMaps,
-        'catatan': catatan,
-        'tgl_buat': Timestamp.now(),
-        'tgl_notifikasi': tglNotifikasi,
-        'prioritas': false,
-        'selesai': false,
-      }).then((_) {
-        // Clear the form fields after successful submission
+      final Map<String, dynamic> data = {
+        'klien': {'referenceValue': klienRef},
+        'nama_klien': {'stringValue': namaKlien},
+        'nama_barang': {'stringValue': namaBarangJoin},
+        'barang': {
+          'arrayValue': {"values": productMaps}
+        },
+        'catatan': {'stringValue': catatan},
+        'tgl_buat': {
+          'timestampValue': Timestamp.now().toDate().toUtc().toIso8601String()
+        },
+        'tgl_notifikasi': {
+          'timestampValue': tglNotifikasi.toDate().toUtc().toIso8601String()
+        },
+        'prioritas': {'booleanValue': false},
+        'selesai': {'booleanValue': false},
+      };
+
+      final body = json.encode({'fields': data});
+
+      final response = await http.post(Uri.parse(url), body: body);
+
+      if (response.statusCode == 200) {
         DropdownSearchState<int>? dropdownState =
             _clientDropdownKey.currentState;
         if (dropdownState != null) {
@@ -234,63 +318,196 @@ class _ComposePageState extends State<ComposePage> {
           SnackBar(content: Text('Data berhasil disimpan !')),
         );
         Navigator.of(context).pop();
-      }).catchError((error) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Error, terjadi kesalahan saat menyimpan data')),
         );
-      });
+      }
+      // FirebaseFirestore.instance.collection('price_quotes').add({
+      //   'klien': klienRef,
+      //   'nama_klien': namaKlien,
+      //   'nama_barang': namaBarangJoin,
+      //   'barang': productMaps,
+      //   'catatan': catatan,
+      //   'tgl_buat': Timestamp.now(),
+      //   'tgl_notifikasi': tglNotifikasi,
+      //   'prioritas': false,
+      //   'selesai': false,
+      // }).then((_) {
+      //   // Clear the form fields after successful submission
+      //   DropdownSearchState<int>? dropdownState =
+      //       _clientDropdownKey.currentState;
+      //   if (dropdownState != null) {
+      //     dropdownState.clear();
+      //     // ...
+      //   }
+
+      //   _namaBarangController.clear();
+      //   _jumlahBarangController.clear();
+      //   _catatanController.clear();
+      //   _satuanController.clear();
+
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(content: Text('Data berhasil disimpan !')),
+      //   );
+      //   Navigator.of(context).pop();
+      // }).catchError((error) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //         content: Text('Error, terjadi kesalahan saat menyimpan data')),
+      //   );
+      // });
     }
   }
 
   Future<Map<String, dynamic>> getPriceQuote(String id, bool isEdit) async {
     Client clientRef = Client(id: '');
     if (isEdit) {
-      DocumentSnapshot priceQuoteData = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .doc(id)
-          .get();
+      String getUrl =
+          'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/price_quotes/$id';
+      http.Response response = await http.get(Uri.parse(getUrl));
 
-      if (priceQuoteData.exists) {
-        //String fieldExistence = documentSnapshot.data().containsKey(fieldName) ? 'Field $fieldName exists.' : 'Field $fieldName does not exist.';
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+        Map<String, dynamic> fields = responseBody['fields'];
+        if (fields.containsKey('klien')) {
+          String namaKlien = '';
+          String idKlien = fields['klien']['referenceValue'].split('/').last;
+          if (idKlien != null) {
+            String url =
+                'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/clients/$idKlien';
+            http.Response response = await http.get(Uri.parse(url));
+            if (response.statusCode == 200) {
+              final responseBody = jsonDecode(response.body);
+              namaKlien = responseBody['fields']['nama_klien']['stringValue'];
+              selectedClientName = namaKlien;
+              selectedClientRef = idKlien;
+              clientRef = Client(
+                  id: idKlien,
+                  namaKlien: namaKlien,
+                  email: responseBody['fields']['email']['stringValue'],
+                  noHp: responseBody['fields']['no_hp']['stringValue'],
+                  alamat: responseBody['fields']['alamat']['stringValue']);
 
-        String namaKlien = '';
-
-        await priceQuoteData['klien'].get().then((klienSnapshot) {
-          if (klienSnapshot.exists) {
-            namaKlien = klienSnapshot.data()!['nama_klien'];
-            selectedClientName = namaKlien;
-            selectedClientRef = klienSnapshot.id;
-            clientRef = Client(
-              id: klienSnapshot.id,
-              namaKlien: namaKlien,
-              email: klienSnapshot.data()!['email'],
-              noHp: klienSnapshot.data()!['no_hp'],
-              alamat: klienSnapshot.data()!['alamat'],
-            );
+              selectedClient = clientRef;
+            } else {
+              // Request failed, handle the error
+              print('Request failed with status code: ${response.statusCode}' +
+                  response.body);
+            }
           }
-          selectedClient = clientRef;
-        }).catchError((error) {
-          print('Error retrieving data: $error');
-        });
-        String catatan = priceQuoteData['catatan'];
-
-        if (priceQuoteData['barang'] != null) {
-          List<Map<String, dynamic>> dataBarang =
-              List<Map<String, dynamic>>.from(
-                  priceQuoteData['barang'] as List<dynamic>);
-
-          _catatanController.text = catatan;
-
-          products = dataBarang.map((itemData) {
-            return Product(
-              namaBarang: itemData['nama_barang'] as String,
-              satuan: itemData['satuan'] as String,
-              jumlahBarang: itemData['jumlah_barang'] as int,
-            );
-          }).toList();
+          //       namaKlien = klienSnapshot.data()!['nama_klien'];
+          //       selectedClientName = namaKlien;
+          //       selectedClientRef = klienSnapshot.id;
+          //       clientRef = Client(
+          //         id: klienSnapshot.id,
+          //         namaKlien: namaKlien,
+          //         email: klienSnapshot.data()!['email'],
+          //         noHp: klienSnapshot.data()!['no_hp'],
+          //         alamat: klienSnapshot.data()!['alamat'],
+          //       );
+          //     }
+          //     selectedClient = clientRef;
         }
+        if (fields.containsKey('barang') &&
+            fields['barang'].containsKey('arrayValue')) {
+          //print(fields['barang']['arrayValue']['values']);
+
+          if (fields['barang']['arrayValue'] != {}) {
+            List<dynamic> values =
+                (fields['barang']['arrayValue']['values']) ?? [];
+            for (var value in values) {
+              if (value.containsKey('mapValue') &&
+                  value['mapValue'].containsKey('fields')) {
+                Map<String, dynamic> productFields =
+                    value['mapValue']['fields'];
+                String namaBarang =
+                    productFields['nama_barang']['stringValue'] ?? '';
+                String satuan = productFields['satuan']['stringValue'] ?? '';
+
+                String jumlahBarang =
+                    productFields['jumlah_barang']['integerValue'] ?? '0';
+                Product updatedBarang = Product(
+                  namaBarang: namaBarang,
+                  satuan: satuan,
+                  jumlahBarang: int.tryParse(jumlahBarang) ?? 0,
+                );
+                print(updatedBarang);
+                print('product fields');
+                print(productFields);
+
+                products.add(updatedBarang);
+              }
+            }
+          }
+          print(products);
+        }
+        // if (priceQuoteData['barang'] != null) {
+        //   List<Map<String, dynamic>> dataBarang =
+        //       List<Map<String, dynamic>>.from(
+        //           priceQuoteData['barang'] as List<dynamic>);
+
+        //   _catatanController.text = catatan;
+
+        //   products = dataBarang.map((itemData) {
+        //     return Product(
+        //       namaBarang: itemData['nama_barang'] as String,
+        //       satuan: itemData['satuan'] as String,
+        //       jumlahBarang: itemData['jumlah_barang'] as int,
+        //     );
+        //   }).toList();
+        // }
+      } else {
+        print('Request failed with status code: ${response.statusCode}' +
+            response.body);
       }
+      // DocumentSnapshot priceQuoteData = await FirebaseFirestore.instance
+      //     .collection('price_quotes')
+      //     .doc(id)
+      //     .get();
+
+      // if (priceQuoteData.exists) {
+      //   //String fieldExistence = documentSnapshot.data().containsKey(fieldName) ? 'Field $fieldName exists.' : 'Field $fieldName does not exist.';
+
+      //   String namaKlien = '';
+
+      //   await priceQuoteData['klien'].get().then((klienSnapshot) {
+      //     if (klienSnapshot.exists) {
+      //       namaKlien = klienSnapshot.data()!['nama_klien'];
+      //       selectedClientName = namaKlien;
+      //       selectedClientRef = klienSnapshot.id;
+      //       clientRef = Client(
+      //         id: klienSnapshot.id,
+      //         namaKlien: namaKlien,
+      //         email: klienSnapshot.data()!['email'],
+      //         noHp: klienSnapshot.data()!['no_hp'],
+      //         alamat: klienSnapshot.data()!['alamat'],
+      //       );
+      //     }
+      //     selectedClient = clientRef;
+      //   }).catchError((error) {
+      //     print('Error retrieving data: $error');
+      //   });
+      //   String catatan = priceQuoteData['catatan'];
+
+      //   if (priceQuoteData['barang'] != null) {
+      //     List<Map<String, dynamic>> dataBarang =
+      //         List<Map<String, dynamic>>.from(
+      //             priceQuoteData['barang'] as List<dynamic>);
+
+      //     _catatanController.text = catatan;
+
+      //     products = dataBarang.map((itemData) {
+      //       return Product(
+      //         namaBarang: itemData['nama_barang'] as String,
+      //         satuan: itemData['satuan'] as String,
+      //         jumlahBarang: itemData['jumlah_barang'] as int,
+      //       );
+      //     }).toList();
+      //   }
+      // }
+
       return {
         'products': products,
         'clientRef': clientRef, // If not available in this case
@@ -303,6 +520,33 @@ class _ComposePageState extends State<ComposePage> {
         'clientRef': clientRef, // If not available in this case
       };
     }
+  }
+
+  Future<List<Client>> getClients() async {
+    List<Client> clients = [];
+
+    String url =
+        'https://firestore.googleapis.com/v1/projects/pt-art-d22b7/databases/(default)/documents/clients';
+    http.Response response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      responseBody['documents'].forEach((element) {
+        Client client = Client(
+          id: element['name'].split('/').last,
+          namaKlien: element['fields']['nama_klien']['stringValue'],
+          email: element['fields']['email']['stringValue'],
+          noHp: element['fields']['no_hp']['stringValue'],
+          alamat: element['fields']['alamat']['stringValue'],
+        );
+
+        clients.add(client);
+      });
+    } else {
+      // Request failed, handle the error
+      print('Request failed with status code: ${response.statusCode}' +
+          response.body);
+    }
+    return clients;
   }
 
   @override
@@ -369,13 +613,13 @@ class _ComposePageState extends State<ComposePage> {
 
                                 Padding(
                                   padding: const EdgeInsets.all(12),
-                                  child: FutureBuilder<QuerySnapshot>(
-                                    future: FirebaseFirestore.instance
-                                        .collection('clients')
-                                        .get(),
+                                  child: FutureBuilder<List<Client>>(
+                                    future: getClients(),
                                     builder: (context, snapshot) {
+                                      List<Client> items = [];
                                       if (snapshot.hasData) {
-                                        final items =
+                                        items = snapshot.data!;
+                                        /*
                                             snapshot.data!.docs.map((doc) {
                                           String id = doc.id;
                                           String namaKlien = doc['nama_klien'];
@@ -391,6 +635,7 @@ class _ComposePageState extends State<ComposePage> {
                                           );
                                           return client;
                                         }).toList();
+                                        */
                                         return DropdownSearch<Client>(
                                           key: _clientDropdownKey,
                                           items: items,

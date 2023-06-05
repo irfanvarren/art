@@ -18,7 +18,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         errorMessage = 'Please enter both username and password.';
       });
-      // /  return;
+      return;
     }
     setState(() {
       errorMessage = '';
@@ -53,6 +53,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         errorMessage = 'Invalid username.';
       });
+      return;
     }
 
     if (storedPassword != '' && password == storedPassword) {
