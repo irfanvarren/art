@@ -133,6 +133,17 @@ class _ClientPreview extends StatelessWidget {
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
+          String namaKlien = '';
+          if (client.singkatan.isNotEmpty) {
+            if (client.namaKlien.isNotEmpty) {
+              namaKlien += (client.singkatan + ' - ');
+            } else {
+              namaKlien += client.singkatan;
+            }
+          }
+          if (client.namaKlien.isNotEmpty) {
+            namaKlien += client.namaKlien;
+          }
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: constraints.maxHeight),
             child: Container(
@@ -146,10 +157,10 @@ class _ClientPreview extends StatelessWidget {
                         children: [
                           const SizedBox(height: 8),
                           Text(
-                            client.namaKlien,
+                            namaKlien,
                             style: TextStyle(
                               fontFamily: 'OpenSans',
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

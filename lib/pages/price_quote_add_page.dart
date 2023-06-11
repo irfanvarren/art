@@ -14,7 +14,9 @@ class ComposePage extends StatefulWidget {
   final bool? isEdit;
   final bool? isRepost;
   final String? editId;
-  ComposePage({super.key, this.isEdit, this.editId, this.isRepost}) {
+  final String? username;
+  ComposePage(
+      {super.key, this.isEdit, this.editId, this.isRepost, this.username}) {
     //initializeNotification();
   }
   @override
@@ -32,6 +34,7 @@ class _ComposePageState extends State<ComposePage> {
 
   int selectedIndex = -1;
   late List<Product> products = [];
+  final TextEditingController _ppController = TextEditingController();
   final TextEditingController _namaBarangController = TextEditingController();
   final TextEditingController _jumlahBarangController = TextEditingController();
   final TextEditingController _satuanController = TextEditingController();
@@ -46,12 +49,14 @@ class _ComposePageState extends State<ComposePage> {
   String selectedClientRef = '';
   String selectedClientName = '';
   Client? selectedClient;
+  late String? username;
   @override
   void initState() {
     super.initState();
     isEdit = isEditNull ?? false;
     isRepost = isRepostNull ?? false;
     editId = editIdNull!;
+    username = widget.username ?? 'admin';
   }
 
   Future<void> initializeNotification() async {
@@ -110,6 +115,7 @@ class _ComposePageState extends State<ComposePage> {
         FirebaseFirestore.instance.collection('clients').doc(selectedClientRef);
 
     String namaKlien = selectedClientName;
+    String noPp = _ppController.text;
     String namaBarang = _namaBarangController.text;
     String jumlahBarang = _jumlahBarangController.text;
     String satuan = _satuanController.text;
@@ -140,23 +146,28 @@ class _ComposePageState extends State<ComposePage> {
         Timestamp tglNotifikasi = Timestamp.fromDate(newDateTime);
 
         dataUpdate = {
+          'no_pp': noPp,
           'klien': klienRef,
           'nama_klien': namaKlien,
           'nama_barang': namaBarangJoin,
           'barang': productMaps,
           'catatan': catatan,
+          'files': [],
           'selesai': false,
           'prioritas': false,
-          'tgl_buat': Timestamp.now(),
+          'tgl_edit': Timestamp.now(),
           'tgl_notifikasi': tglNotifikasi
         };
       } else {
         dataUpdate = {
+          'no_pp': noPp,
           'klien': klienRef,
           'nama_klien': namaKlien,
           'nama_barang': namaBarangJoin,
           'barang': productMaps,
           'catatan': catatan,
+          'files': [],
+          'tgl_edit': Timestamp.now(),
         };
       }
       FirebaseFirestore.instance
@@ -171,6 +182,7 @@ class _ComposePageState extends State<ComposePage> {
           dropdownState.clear();
           // ...
         }
+        _ppController.clear();
         _namaBarangController.clear();
         _jumlahBarangController.clear();
         _catatanController.clear();
@@ -207,13 +219,19 @@ class _ComposePageState extends State<ComposePage> {
       Timestamp tglNotifikasi = Timestamp.fromDate(newDateTime);
 
       FirebaseFirestore.instance.collection('price_quotes').add({
+        'no_pp': noPp,
+        'no_ph': '',
         'klien': klienRef,
         'nama_klien': namaKlien,
         'nama_barang': namaBarangJoin,
         'barang': productMaps,
         'catatan': catatan,
+        'username': username,
+        'files': [],
         'tgl_buat': Timestamp.now(),
+        'tgl_edit': Timestamp.now(),
         'tgl_notifikasi': tglNotifikasi,
+        'notif': false,
         'prioritas': false,
         'selesai': false,
       }).then((_) {
@@ -224,7 +242,7 @@ class _ComposePageState extends State<ComposePage> {
           dropdownState.clear();
           // ...
         }
-
+        _ppController.clear();
         _namaBarangController.clear();
         _jumlahBarangController.clear();
         _catatanController.clear();
@@ -274,13 +292,14 @@ class _ComposePageState extends State<ComposePage> {
           print('Error retrieving data: $error');
         });
         String catatan = priceQuoteData['catatan'];
+        String noPp = priceQuoteData['no_pp'];
+        _catatanController.text = catatan;
+        _ppController.text = noPp;
 
         if (priceQuoteData['barang'] != null) {
           List<Map<String, dynamic>> dataBarang =
               List<Map<String, dynamic>>.from(
                   priceQuoteData['barang'] as List<dynamic>);
-
-          _catatanController.text = catatan;
 
           products = dataBarang.map((itemData) {
             return Product(
@@ -359,6 +378,28 @@ class _ComposePageState extends State<ComposePage> {
                                 Padding(
                                   padding:
                                       const EdgeInsets.only(left: 12, top: 12),
+                                  child: Text('No. Permintaan Penawaran',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontFamily: 'Arial',
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: TextField(
+                                    controller: _ppController,
+                                    decoration: const InputDecoration.collapsed(
+                                      hintText: 'No. Permintaan Penawaran',
+                                    ),
+                                    autofocus: false,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: 12, top: 12),
                                   child: Text('Nama Klien',
                                       textAlign: TextAlign.left,
                                       style: TextStyle(
@@ -382,9 +423,11 @@ class _ComposePageState extends State<ComposePage> {
                                           String email = doc['email'];
                                           String noHp = doc['no_hp'];
                                           String alamat = doc['alamat'];
+                                          String singkatan = doc['singkatan'];
                                           Client client = Client(
                                             id: id,
                                             namaKlien: namaKlien,
+                                            singkatan: singkatan,
                                             email: email,
                                             noHp: noHp,
                                             alamat: alamat,
@@ -400,6 +443,21 @@ class _ComposePageState extends State<ComposePage> {
                                             selectedClientRef = data!.id;
                                             selectedClientName =
                                                 data!.namaKlien;
+                                          },
+                                          itemAsString: (item) {
+                                            String namaKlien = '';
+                                            if (item.singkatan.isNotEmpty) {
+                                              if (item.namaKlien.isNotEmpty) {
+                                                namaKlien +=
+                                                    (item.singkatan + ' - ');
+                                              } else {
+                                                namaKlien += item.singkatan;
+                                              }
+                                            }
+                                            if (item.namaKlien.isNotEmpty) {
+                                              namaKlien += item.namaKlien;
+                                            }
+                                            return namaKlien;
                                           },
                                           selectedItem: selectedClient,
                                           popupProps: PopupProps.menu(
@@ -747,6 +805,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
 
   _ItemFormScreenState({required this.products});
 
+  final TextEditingController _ppController = TextEditingController();
   final TextEditingController _namaKlienController = TextEditingController();
   final TextEditingController _namaBarangController = TextEditingController();
   final TextEditingController _jumlahBarangController = TextEditingController();

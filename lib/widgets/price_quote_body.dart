@@ -13,7 +13,11 @@ import 'dart:async';
 
 //import 'package:provider/provider.dart';
 typedef StreamCallback = void Function(
-    String? destination, Client? filterClient, String filterBarang);
+    String? destination,
+    Client? filterClient,
+    String filterBarang,
+    String filterPp,
+    String filterPh);
 
 class MailboxBody extends StatefulWidget {
   final BuildContext parentContext;
@@ -50,7 +54,7 @@ class _MailboxBodyState extends State<MailboxBody> {
     dataList = [];
     filterProduct = '';
     destination = widget.destination;
-    getStream(widget.destination, null, null);
+    getStream(widget.destination, null, null, null, null);
 
 // Assuming you have a stream called myStream of type Stream<QuerySnapshot<dynamic>>
     // streamController.stream.listen((Map<String, dynamic> event) {
@@ -69,7 +73,7 @@ class _MailboxBodyState extends State<MailboxBody> {
       streamController!.close();
       streamController = StreamController<Map<String, dynamic>>();
 
-      getStream(widget.destination, null, null);
+      getStream(widget.destination, null, null, null, null);
     }
     super.didUpdateWidget(widget);
   }
@@ -80,9 +84,17 @@ class _MailboxBodyState extends State<MailboxBody> {
     super.dispose();
   }
 
-  void triggerStreamBuilder(
-      String? getDestination, Client? pFilterClient, String pFilterBarang) {
-    print(getDestination! + '|' + widget.destination + '|' + destination);
+  void triggerStreamBuilder(String? getDestination, Client? pFilterClient,
+      String pFilterBarang, String filterPp, String filterPh) {
+    print(getDestination! +
+        '|' +
+        widget.destination +
+        '|' +
+        destination +
+        '|' +
+        filterPp +
+        '|' +
+        filterPh);
     //setState(() {
     filterClient = pFilterClient;
     filterBarang = pFilterBarang;
@@ -91,33 +103,45 @@ class _MailboxBodyState extends State<MailboxBody> {
     //});
     //print(pFilterClient);
     //print(pFilterBarang);
-    getStream(widget.destination, filterClient, filterBarang);
+    getStream(
+        widget.destination, filterClient, filterBarang, filterPp, filterPh);
   }
 
   // Stream<Map<String, dynamic>> getStream(String destination) {
-  void getStream(
-      String destination, Client? filterClient, String? filterBarang) async {
+  void getStream(String destination, Client? filterClient, String? filterBarang,
+      String? filterPp, String? filterPh) async {
     Stream<QuerySnapshot<dynamic>> myStream;
 
     if (widget.destination == 'clients') {
       myStream =
           await FirebaseFirestore.instance.collection('clients').snapshots();
-    } else if (widget.destination == 'prioritas') {
-      myStream = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .where('selesai', isEqualTo: false)
-          .where('prioritas', isEqualTo: true)
-          .snapshots();
-    } else if (widget.destination == 'done') {
-      myStream = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .where('selesai', isEqualTo: true)
-          .snapshots();
     } else {
-      myStream = await FirebaseFirestore.instance
-          .collection('price_quotes')
-          .where('selesai', isEqualTo: false)
-          .snapshots();
+      Query myQuery;
+      if (widget.destination == 'prioritas') {
+        myQuery = await FirebaseFirestore.instance
+            .collection('price_quotes')
+            .where('selesai', isEqualTo: false)
+            .where('prioritas', isEqualTo: true);
+      } else if (widget.destination == 'done') {
+        myQuery = await FirebaseFirestore.instance
+            .collection('price_quotes')
+            .where('selesai', isEqualTo: true);
+      } else {
+        myQuery = await FirebaseFirestore.instance
+            .collection('price_quotes')
+            .where('selesai', isEqualTo: false);
+      }
+      if (filterPp != null) {
+        if (filterPp.isNotEmpty) {
+          myQuery = myQuery.where('no_pp', isEqualTo: filterPp);
+        }
+      }
+      if (filterPh != null) {
+        if (filterPh.isNotEmpty) {
+          myQuery = myQuery.where('no_ph', isEqualTo: filterPh);
+        }
+      }
+      myStream = myQuery.snapshots();
     }
     //return
 
@@ -130,6 +154,7 @@ class _MailboxBodyState extends State<MailboxBody> {
         snapshot.docs.forEach((DocumentSnapshot document) {
           Client client = Client(
             id: document.id,
+            singkatan: document['singkatan'],
             namaKlien: document['nama_klien'],
             email: document['email'],
             noHp: document['no_hp'],
@@ -153,24 +178,27 @@ class _MailboxBodyState extends State<MailboxBody> {
         snapshot.docs.forEach((DocumentSnapshot document) {
           Email price_quote = Email(
             id: document.id,
+            noPp: document['no_pp'],
+            noPh: document['no_ph'],
             namaBarang: document['nama_barang'],
             barang: document['barang'] as List<dynamic>,
             catatan: document['catatan'],
-            klien: document['klien'] as DocumentReference<Map<String, dynamic>>,
+            klienRef:
+                document['klien'] as DocumentReference<Map<String, dynamic>>,
             tglBuat: document['tgl_buat'],
             tglNotifikasi: document['tgl_notifikasi'],
             selesai: document['selesai'],
             prioritas: document['prioritas'],
           );
           if (filterClient != null && filterBarang != null) {
-            if (price_quote.klien!.id == filterClient.id &&
+            if (price_quote.klienRef!.id == filterClient.id &&
                 price_quote.namaBarang
                     .toLowerCase()
                     .contains(filterBarang.toLowerCase())) {
               price_quotes.add(price_quote);
             }
           } else if (filterClient != null) {
-            if (price_quote.klien!.id == filterClient.id) {
+            if (price_quote.klienRef!.id == filterClient.id) {
               price_quotes.add(price_quote);
             }
           } else if (filterBarang != null) {
@@ -215,7 +243,7 @@ class _MailboxBodyState extends State<MailboxBody> {
       destination = widget.destination;
       streamController!.close();
       streamController = StreamController<Map<String, dynamic>>();
-      getStream(widget.destination, null, null);
+      getStream(widget.destination, null, null, null, null);
     }
     //   streamController.close();
     //   getStream(myWidget.destination);
@@ -315,12 +343,20 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
   late String username;
   late BuildContext parentContext;
   final clientDropdownKey = GlobalKey<DropdownSearchState<int>>();
+  final ppDropdownKey = GlobalKey<DropdownSearchState<int>>();
+  final phDropdownKey = GlobalKey<DropdownSearchState<int>>();
   Client? selectedClientData;
+  String filterPp = '';
+  String filterPh = '';
   late List dataList;
   List<Client> clientsList = [];
+  List<String> ppList = [];
+  List<String> phList = [];
   final TextEditingController _barangController = TextEditingController();
+  final TextEditingController _noPhController = TextEditingController();
   Timer? _debounce;
   bool isNavigatorPopped = false;
+  String doneError = '';
 
   @override
   void initState() {
@@ -350,23 +386,68 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
       //     });
       //   }
     }
+    if (widget.clientSearchItems != clientSearchItems) {
+      clientSearchItems = widget.clientSearchItems;
+    }
     super.didUpdateWidget(oldWidget);
   }
 
   Future<void> doneEmail(String documentId) async {
-    try {
-      // Get a reference to the document you want to update
-      DocumentReference documentReference =
-          FirebaseFirestore.instance.collection('price_quotes').doc(documentId);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Masukkan No PH :'),
+        content: Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _noPhController,
+              onTap: () {},
+              decoration: const InputDecoration.collapsed(
+                fillColor: Colors.white,
+                hintStyle: TextStyle(fontSize: 16),
+                hintText: 'No. PH...',
+              ),
+              autofocus: true,
+            ),
+          ),
+          Text(doneError)
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Tidak'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                // Get a reference to the document you want to update
+                DocumentReference documentReference = FirebaseFirestore.instance
+                    .collection('price_quotes')
+                    .doc(documentId);
 
-      // Update the document with the new data
-      await documentReference.update({'selesai': true});
-      widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+                // Update the document with the new data
+                if (_noPhController.text.isNotEmpty) {
+                  await documentReference
+                      .update({'selesai': true, 'no_ph': _noPhController.text});
+                } else {
+                  await documentReference.update({'selesai': true});
+                }
+                widget.triggerStreamBuilder(destination, filterClient,
+                    filterBarang, filterPp, filterPh);
 
-      print('Data berhasil disimpan');
-    } catch (e) {
-      print('Error !');
-    }
+                print('Data berhasil disimpan');
+              } catch (e) {
+                print('Error !');
+              }
+              Navigator.of(context).pop();
+            },
+            child: Text('Ya'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> deleteEmail(String documentId) async {
@@ -392,8 +473,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
 
                 // Update the document with the new data
                 await documentReference.delete();
-                widget.triggerStreamBuilder(
-                    destination, filterClient, filterBarang);
+                widget.triggerStreamBuilder(destination, filterClient,
+                    filterBarang, filterPp, filterPh);
                 print('Data berhasil disimpan');
               } catch (e) {
                 print('Error !');
@@ -430,9 +511,10 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
 
                 // Update the document with the new data
                 await documentReference.delete();
-                widget.triggerStreamBuilder(
-                    destination, filterClient, filterBarang);
+                // widget.triggerStreamBuilder(
+                //     destination, filterClient, filterBarang);
                 setState(() {
+                  selectedClientData = null;
                   filteredClientData = null;
                 });
                 print('Data berhasil disimpan');
@@ -457,7 +539,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
 
       // Update the document with the new data
       await documentReference.update({'prioritas': false});
-      widget.triggerStreamBuilder(destination, client, barang);
+      widget.triggerStreamBuilder(
+          destination, filterClient, filterBarang, filterPp, filterPh);
       print('Data berhasil disimpan');
     } catch (e) {
       print('Error !');
@@ -473,7 +556,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
 
       // Update the document with the new data
       await documentReference.update({'prioritas': true});
-      widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+      widget.triggerStreamBuilder(
+          destination, filterClient, filterBarang, filterPp, filterPh);
       print('Data berhasil disimpan');
     } catch (e) {
       print('Error !');
@@ -503,7 +587,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                 ComposePage(isEdit: true, editId: id, isRepost: isDone)),
       );
     }
-    widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+    widget.triggerStreamBuilder(
+        destination, filterClient, filterBarang, filterPp, filterPh);
   }
 
   Future<void> openEditClient(
@@ -516,7 +601,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
             builder: (context) => ClientAddPage(isEdit: true, editId: id)),
       );
     }
-    widget.triggerStreamBuilder(destination, filterClient, filterBarang);
+    widget.triggerStreamBuilder(
+        destination, filterClient, filterBarang, filterPp, filterPh);
   }
 
   void filterDataListByClient(Client? client) {
@@ -531,14 +617,15 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                     .namaBarang
                     .toLowerCase()
                     .contains(filterBarang.toLowerCase()) &&
-                (data.klien as DocumentReference<Map<String, dynamic>>?)!.id ==
+                (data.klienRef as DocumentReference<Map<String, dynamic>>?)!
+                        .id ==
                     client!.id)
             .toList();
       } else {
         filteredDataList = filteredDataList
             .where((data) =>
                 (data as Email)
-                    .klien!
+                    .klienRef!
                     .id /* (data.klien as DocumentReference<Map<String, dynamic>>?)!.id*/ ==
                 client!.id)
             .toList();
@@ -597,7 +684,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                     .namaBarang
                     .toLowerCase()
                     .contains(barang.toLowerCase()) &&
-                (data.klien as DocumentReference<Map<String, dynamic>>?)!.id ==
+                (data.klienRef as DocumentReference<Map<String, dynamic>>?)!
+                        .id ==
                     filterClient!.id)
             .toList();
       } else {
@@ -612,6 +700,46 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
         filteredDataList;
       });
     });
+  }
+
+  Future<List<String>> getPp() async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('price_quotes')
+        .where('no_pp', isNotEqualTo: "")
+        .get();
+
+    List<String> fieldValues = [];
+
+    querySnapshot.docs.forEach((doc) {
+      // Get the value of the specific field you want to retrieve
+      String fieldValue =
+          doc.get('no_pp'); // Replace 'fieldName' with your field name
+
+      // Add the field value to the list
+      fieldValues.add(fieldValue);
+    });
+
+    return fieldValues;
+  }
+
+  Future<List<String>> getPh() async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('price_quotes')
+        .where('no_ph', isNotEqualTo: "")
+        .get();
+
+    List<String> fieldValues = [];
+
+    querySnapshot.docs.forEach((doc) {
+      // Get the value of the specific field you want to retrieve
+      String fieldValue =
+          doc.get('no_ph'); // Replace 'fieldName' with your field name
+
+      // Add the field value to the list
+      fieldValues.add(fieldValue);
+    });
+    print('fieldvalue' + fieldValues.toString());
+    return fieldValues;
   }
 
   @override
@@ -632,6 +760,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
     print('build test');
     print(filteredDataList);
     return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (destination == 'clients') ...[
           Container(
@@ -640,6 +770,20 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
               key: clientDropdownKey,
               items: clientSearchItems,
               selectedItem: selectedClientData,
+              itemAsString: (item) {
+                String namaKlien = '';
+                if (item.singkatan.isNotEmpty) {
+                  if (item.namaKlien.isNotEmpty) {
+                    namaKlien += (item.singkatan + ' - ');
+                  } else {
+                    namaKlien += item.singkatan;
+                  }
+                }
+                if (item.namaKlien.isNotEmpty) {
+                  namaKlien += item.namaKlien;
+                }
+                return namaKlien;
+              },
               dropdownDecoratorProps: DropDownDecoratorProps(
                   textAlignVertical: TextAlignVertical.center,
                   dropdownSearchDecoration: InputDecoration(
@@ -677,119 +821,272 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
             ),
           ),
         ] else ...[
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-                child: FutureBuilder<QuerySnapshot>(
-                  future:
-                      FirebaseFirestore.instance.collection('clients').get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      clientsList = snapshot.data!.docs.map((doc) {
-                        String id = doc.id;
-                        String namaKlien = doc['nama_klien'];
-                        String email = doc['email'];
-                        String noHp = doc['no_hp'];
-                        String alamat = doc['alamat'];
-                        Client client = Client(
-                          id: id,
-                          namaKlien: namaKlien,
-                          email: email,
-                          noHp: noHp,
-                          alamat: alamat,
+          Container(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+                  child: FutureBuilder<QuerySnapshot>(
+                    future:
+                        FirebaseFirestore.instance.collection('clients').get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        clientsList = snapshot.data!.docs.map((doc) {
+                          String id = doc.id;
+                          String namaKlien = doc['nama_klien'];
+                          String singkatan = doc['singkatan'];
+                          String email = doc['email'];
+                          String noHp = doc['no_hp'];
+                          String alamat = doc['alamat'];
+                          Client client = Client(
+                            id: id,
+                            singkatan: singkatan,
+                            namaKlien: namaKlien,
+                            email: email,
+                            noHp: noHp,
+                            alamat: alamat,
+                          );
+
+                          return client;
+                        }).toList();
+                        return DropdownSearch<Client>(
+                          key: clientDropdownKey,
+                          items: clientsList,
+                          selectedItem: selectedClientData,
+                          itemAsString: (item) {
+                            String namaKlien = '';
+                            if (item.singkatan.isNotEmpty) {
+                              if (item.namaKlien.isNotEmpty) {
+                                namaKlien += (item.singkatan + ' - ');
+                              } else {
+                                namaKlien += item.singkatan;
+                              }
+                            }
+                            if (item.namaKlien.isNotEmpty) {
+                              namaKlien += item.namaKlien;
+                            }
+                            return namaKlien;
+                          },
+                          dropdownDecoratorProps: DropDownDecoratorProps(
+                              textAlignVertical: TextAlignVertical.center,
+                              dropdownSearchDecoration: InputDecoration(
+                                  hintText: 'Cari Klien...',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  prefixIcon: (selectedClientData != null)
+                                      ? IconButton(
+                                          color: Colors.blue,
+                                          icon: Icon(Icons.clear),
+                                          onPressed: () {
+                                            setState(() {
+                                              selectedClientData = null;
+                                              filterClient = null;
+                                              // if (filterBarang.isNotEmpty) {
+                                              //   filterDataListByName(
+                                              //       filterBarang);
+                                              // } else {
+                                              //   filteredDataList = dataList;
+                                              // }
+                                              widget.triggerStreamBuilder(
+                                                  destination,
+                                                  filterClient,
+                                                  filterBarang,
+                                                  filterPp,
+                                                  filterPh);
+                                            });
+                                          },
+                                        )
+                                      : null)),
+                          onChanged: (Client? data) {
+                            setState(() {
+                              selectedClientData = data;
+                              filterClient = data;
+                            });
+                            filterDataListByClient(data);
+                          },
+
+                          // selectedItem: selectedClient,
+
+                          popupProps: PopupProps.menu(
+                            showSearchBox: true,
+                          ),
                         );
-
-                        return client;
-                      }).toList();
-                      return DropdownSearch<Client>(
-                        key: clientDropdownKey,
-                        items: clientsList,
-                        selectedItem: selectedClientData,
-                        dropdownDecoratorProps: DropDownDecoratorProps(
-                            textAlignVertical: TextAlignVertical.center,
-                            dropdownSearchDecoration: InputDecoration(
-                                hintText: 'Cari Klien...',
-                                filled: true,
-                                fillColor: Colors.white,
-                                prefixIcon: (selectedClientData != null)
-                                    ? IconButton(
-                                        color: Colors.blue,
-                                        icon: Icon(Icons.clear),
-                                        onPressed: () {
-                                          setState(() {
-                                            selectedClientData = null;
-                                            filterClient = null;
-                                            // if (filterBarang.isNotEmpty) {
-                                            //   filterDataListByName(
-                                            //       filterBarang);
-                                            // } else {
-                                            //   filteredDataList = dataList;
-                                            // }
-                                            widget.triggerStreamBuilder(
-                                                destination,
-                                                filterClient,
-                                                filterBarang);
-                                          });
-                                        },
-                                      )
-                                    : null)),
-                        onChanged: (Client? data) {
-                          setState(() {
-                            selectedClientData = data;
-                            filterClient = data;
-                          });
-                          filterDataListByClient(data);
-                        },
-
-                        // selectedItem: selectedClient,
-
-                        popupProps: PopupProps.menu(
-                          showSearchBox: true,
-                        ),
-                      );
-                    } else if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}');
-                    } else {
-                      return CircularProgressIndicator();
-                    }
-                  },
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.black, // Set the desired border color
-                        width: 1.0, // Set the desired border width
-                      ),
-                    ),
-                  ),
-                  child: TextField(
-                    onTap: () {},
-                    controller: _barangController,
-                    decoration: const InputDecoration.collapsed(
-                      fillColor: Colors.white,
-                      hintStyle: TextStyle(fontSize: 16),
-                      hintText: 'Nama Barang...',
-                    ),
-                    autofocus: false,
-                    onChanged: (value) {
-                      setState(() {
-                        filterBarang = value;
-
-                        filterDataListByName(value);
-                      });
+                      } else if (snapshot.hasError) {
+                        return Text('Error: ${snapshot.error}');
+                      } else {
+                        return CircularProgressIndicator();
+                      }
                     },
                   ),
                 ),
-              ),
-            ],
+                Container(
+                  padding: const EdgeInsets.only(top: 10, left: 20, right: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: FutureBuilder<List<String>>(
+                          future: getPp(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              ppList = snapshot.data!;
+                              return DropdownSearch<String>(
+                                key: ppDropdownKey,
+                                items: ppList,
+                                selectedItem:
+                                    filterPp.isEmpty ? null : filterPp,
+                                dropdownDecoratorProps: DropDownDecoratorProps(
+                                    textAlignVertical: TextAlignVertical.center,
+                                    dropdownSearchDecoration: InputDecoration(
+                                        hintText: 'Cari No. PP...',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        prefixIcon: filterPp.isEmpty
+                                            ? null
+                                            : IconButton(
+                                                color: Colors.blue,
+                                                icon: Icon(Icons.clear),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    filterPp = '';
+                                                  });
+                                                  widget.triggerStreamBuilder(
+                                                      destination,
+                                                      filterClient,
+                                                      filterBarang,
+                                                      filterPp,
+                                                      filterPh);
+                                                },
+                                              ))),
+                                onChanged: (String? data) {
+                                  setState(() {
+                                    filterPp = data!;
+                                  });
+                                  widget.triggerStreamBuilder(
+                                      destination,
+                                      filterClient,
+                                      filterBarang,
+                                      filterPp,
+                                      filterPh);
+                                },
+
+                                // selectedItem: selectedClient,
+
+                                popupProps: PopupProps.menu(
+                                  showSearchBox: true,
+                                ),
+                              );
+                            } else if (snapshot.hasError) {
+                              return Text('Error: ${snapshot.error}');
+                            } else {
+                              return CircularProgressIndicator();
+                            }
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 8.0),
+                      Expanded(
+                        flex: 1,
+                        child: FutureBuilder<List<String>>(
+                          future: getPh(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              phList = snapshot.data!;
+                              return DropdownSearch<String>(
+                                key: phDropdownKey,
+                                items: phList,
+                                selectedItem:
+                                    filterPh.isEmpty ? null : filterPh,
+                                dropdownDecoratorProps: DropDownDecoratorProps(
+                                    textAlignVertical: TextAlignVertical.center,
+                                    dropdownSearchDecoration: InputDecoration(
+                                        hintText: 'Cari No. PH...',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        prefixIcon: filterPh.isEmpty
+                                            ? null
+                                            : IconButton(
+                                                color: Colors.blue,
+                                                icon: Icon(Icons.clear),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    filterPh = '';
+                                                  });
+                                                  widget.triggerStreamBuilder(
+                                                      destination,
+                                                      filterClient,
+                                                      filterBarang,
+                                                      filterPp,
+                                                      filterPh);
+                                                },
+                                              ))),
+                                onChanged: (String? data) {
+                                  setState(() {
+                                    filterPh = data!;
+                                  });
+                                  widget.triggerStreamBuilder(
+                                      destination,
+                                      filterClient,
+                                      filterBarang,
+                                      filterPp,
+                                      filterPh);
+                                },
+
+                                // selectedItem: selectedClient,
+
+                                popupProps: PopupProps.menu(
+                                  showSearchBox: true,
+                                ),
+                              );
+                            } else if (snapshot.hasError) {
+                              return Text('Error: ${snapshot.error}');
+                            } else {
+                              return CircularProgressIndicator();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.only(top: 10, left: 20, right: 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 18),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.black, // Set the desired border color
+                          width: 1.0, // Set the desired border width
+                        ),
+                      ),
+                    ),
+                    child: TextField(
+                      onTap: () {},
+                      controller: _barangController,
+                      decoration: const InputDecoration.collapsed(
+                        fillColor: Colors.white,
+                        hintStyle: TextStyle(fontSize: 16),
+                        hintText: 'Nama Barang...',
+                      ),
+                      autofocus: false,
+                      onChanged: (value) {
+                        setState(() {
+                          filterBarang = value;
+
+                          filterDataListByName(value);
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
         if (filteredClientData != null) ...[
@@ -855,20 +1152,35 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                         )
                         .toList();
                     String namaBarang = mappedList.join(', ');
-
+                    print(priceQuote.klienRef);
                     return FutureBuilder<DocumentSnapshot>(
-                      future: priceQuote.klien!.get(),
+                      future: priceQuote.klienRef!.get(),
                       builder: (context, klienSnapshot) {
+                        print('future build test');
                         if (klienSnapshot.connectionState ==
                             ConnectionState.waiting) {
                           return Container();
-                        } else if (klienSnapshot.hasData) {
-                          DocumentSnapshot klienSnapshotData =
-                              klienSnapshot.data!;
-
-                          // Access the data from klienSnapshot
-                          String namaKlien = klienSnapshotData['nama_klien'];
-                          priceQuote.namaKlien = namaKlien;
+                        } else if (klienSnapshot.connectionState ==
+                            ConnectionState.done) {
+                          if (klienSnapshot.hasData &&
+                              klienSnapshot.data!.exists) {
+                            DocumentSnapshot klienSnapshotData =
+                                klienSnapshot.data!;
+                            Client priceQuoteClient = Client(
+                              id: klienSnapshotData.id,
+                              namaKlien: klienSnapshotData['nama_klien'],
+                              singkatan: klienSnapshotData['singkatan'],
+                              noHp: klienSnapshotData['no_hp'],
+                              email: klienSnapshotData['email'],
+                              alamat: klienSnapshotData['alamat'],
+                            );
+                            priceQuote.klien = priceQuoteClient;
+                            // Access the data from klienSnapshot
+                            String namaKlien = klienSnapshotData['nama_klien'];
+                            priceQuote.namaKlien = namaKlien;
+                          } else {
+                            priceQuote.namaKlien = '-';
+                          }
 
                           // Email priceQuote = Email(
                           //   //id: priceQuoteDocument.id,
@@ -887,6 +1199,7 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                             username: username,
                             email: priceQuote,
                             namaBarang: namaBarang,
+                            catatan: priceQuote.catatan,
                             onDone: () => doneEmail(priceQuote.id),
                             onDelete: () => deleteEmail(priceQuote.id),
                             onStar: () {

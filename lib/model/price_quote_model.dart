@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Email {
   Email({
     required this.id,
-    this.klien,
+    this.noPp = '',
+    this.noPh = '',
+    this.klienRef,
     this.barang = const [],
     this.gambar = '',
     this.tglBuat,
@@ -18,15 +20,19 @@ class Email {
     this.containsPictures = false,
     this.prioritas = false,
     this.selesai = false,
+    this.klien,
+    this.files = const [],
   });
   final String id;
-  final DocumentReference<Map<String, dynamic>>? klien;
+  final DocumentReference<Map<String, dynamic>>? klienRef;
   final List<dynamic> barang;
   final Timestamp? tglBuat;
   final Timestamp? tglEdit;
   final Timestamp? tglProses;
   final Timestamp? tglNotifikasi;
   String namaKlien;
+  final String noPp;
+  final String noPh;
   final String namaBarang;
   final String jumlahBarang;
   final String satuan;
@@ -35,11 +41,16 @@ class Email {
   final bool containsPictures;
   final bool prioritas;
   final bool selesai;
+  Client? klien;
+  List<String> files;
 
   Map<String, dynamic> toJson() {
     return {
       'id': namaBarang,
+      'no_pp': noPp,
+      'no_ph': noPh,
       'barang': barang,
+      'files': files,
       'tgl_edit': tglEdit,
       'tgl_proses': tglProses,
       'tgl_notifikasi': tglNotifikasi,
@@ -75,15 +86,16 @@ class Product {
 }
 
 class Client {
-  Client({
-    required this.id,
-    this.namaKlien = '',
-    this.email = '',
-    this.noHp = '',
-    this.alamat = '',
-  });
+  Client(
+      {required this.id,
+      this.namaKlien = '',
+      this.email = '',
+      this.noHp = '',
+      this.alamat = '',
+      this.singkatan = ''});
   final String id;
   final String namaKlien;
+  final String singkatan;
   final String email;
   final String noHp;
   final String alamat;
@@ -92,6 +104,7 @@ class Client {
     return {
       'id': id,
       'nama_klien': namaKlien,
+      'singkatan': singkatan,
       'email': email,
       'no_hp': noHp,
       'alamat': alamat,

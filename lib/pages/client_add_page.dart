@@ -33,6 +33,7 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
   int selectedIndex = -1;
   late List<Product> products = [];
   final TextEditingController _namaKlienController = TextEditingController();
+  final TextEditingController _singkatanController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _noHpController = TextEditingController();
   final TextEditingController _alamatController = TextEditingController();
@@ -103,6 +104,7 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
 
     // Get the form values
     String namaKlien = _namaKlienController.text;
+    String singkatan = _singkatanController.text;
     String email = _emailController.text;
     String noHp = _noHpController.text;
     String alamat = _alamatController.text;
@@ -113,12 +115,14 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
         dataUpdate = {
           'nama_klien': namaKlien,
           'email': email,
+          'singkatan': singkatan,
           'no_hp': noHp,
           'alamat': alamat,
         };
       } else {
         dataUpdate = {
           'nama_klien': namaKlien,
+          'singkatan': singkatan,
           'email': email,
           'no_hp': noHp,
           'alamat': alamat,
@@ -131,6 +135,7 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
           .then((_) {
         // Clear the form fields after successful submission
         _namaKlienController.clear();
+        _singkatanController.clear();
         _emailController.clear();
         _noHpController.clear();
         _alamatController.clear();
@@ -151,12 +156,14 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
 
       FirebaseFirestore.instance.collection('clients').add({
         'nama_klien': namaKlien,
+        'singkatan': singkatan,
         'email': email,
         'no_hp': noHp,
         'alamat': alamat,
       }).then((_) {
         // Clear the form fields after successful submission
         _namaKlienController.clear();
+        _singkatanController.clear();
         _emailController.clear();
         _noHpController.clear();
         _alamatController.clear();
@@ -181,11 +188,13 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
 
       if (priceQuoteData.exists) {
         String namaKlien = priceQuoteData['nama_klien'];
+        String singkatan = priceQuoteData['singkatan'];
         String email = priceQuoteData['email'];
         String noHp = priceQuoteData['no_hp'];
         String alamat = priceQuoteData['alamat'];
 
         _namaKlienController.text = namaKlien;
+        _singkatanController.text = singkatan;
         _emailController.text = email;
         _noHpController.text = noHp;
         _alamatController.text = alamat;
@@ -231,6 +240,28 @@ class _ClientAddPagePageState extends State<ClientAddPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _SubjectRow(),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 12, top: 12),
+                                child: Text('Singkatan',
+                                    textAlign: TextAlign.left,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontFamily: 'Arial',
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: TextField(
+                                  controller: _singkatanController,
+                                  decoration: const InputDecoration.collapsed(
+                                    hintText: 'Singkatan',
+                                  ),
+                                  autofocus: false,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                              const _SectionDivider(),
                               Padding(
                                 padding:
                                     const EdgeInsets.only(left: 12, top: 12),

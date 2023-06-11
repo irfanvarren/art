@@ -20,6 +20,7 @@ class MailPreviewCard extends StatelessWidget {
     required this.id,
     required this.username,
     required this.email,
+    required this.catatan,
     required this.onDelete,
     required this.onDone,
     required this.onStar,
@@ -32,6 +33,7 @@ class MailPreviewCard extends StatelessWidget {
   final String id;
   final String username;
   final String namaBarang;
+  final String catatan;
   final Email email;
   final VoidCallback onDelete;
   final VoidCallback onDone;
@@ -63,6 +65,7 @@ class MailPreviewCard extends StatelessWidget {
           username: username,
           email: email,
           namaBarang: namaBarang,
+          catatan: catatan,
           onTap: openContainer,
           onDone: onDone,
           onStar: onStar,
@@ -172,6 +175,7 @@ class _MailPreview extends StatelessWidget {
       {required this.id,
       required this.username,
       required this.namaBarang,
+      required this.catatan,
       required this.email,
       required this.onTap,
       this.onDone,
@@ -182,6 +186,7 @@ class _MailPreview extends StatelessWidget {
   final String id;
   final String username;
   final String namaBarang;
+  final String catatan;
   final Email email;
   final VoidCallback onTap;
   final VoidCallback? onStar;
@@ -207,6 +212,26 @@ class _MailPreview extends StatelessWidget {
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
+          String priceQuoteTitle = '';
+          if (email.klien != null) {
+            if (email.noPp.isNotEmpty || email.noPh.isNotEmpty) {
+              priceQuoteTitle += ('' + email.klien!.singkatan + ' | ');
+            } else {
+              priceQuoteTitle += email.klien!.singkatan;
+            }
+          }
+          List<String> pp_ph = [];
+          if (email.noPp.isNotEmpty) {
+            pp_ph.add('PP : ' + email.noPp);
+          }
+
+          if (email.noPh.isNotEmpty) {
+            pp_ph.add('PH : ' + email.noPh);
+          }
+          if (pp_ph.isNotEmpty) {
+            priceQuoteTitle += pp_ph.join(' | ');
+          }
+
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: constraints.maxHeight),
             child: Padding(
@@ -216,7 +241,7 @@ class _MailPreview extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.only(bottom: 4),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -258,16 +283,32 @@ class _MailPreview extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Text(email.namaKlien, style: textTheme.headlineSmall),
-                  const SizedBox(height: 16),
+                  Text(priceQuoteTitle, style: textTheme.headlineSmall),
+                  const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsetsDirectional.only(
                       end: 20,
                     ),
                     child: Text(
-                      namaBarang,
+                      namaBarang.isNotEmpty
+                          ? 'Barang : ' + namaBarang
+                          : 'Barang : -',
                       overflow: TextOverflow.ellipsis,
-                      maxLines: 4,
+                      maxLines: 3,
+                      style: textTheme.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      end: 20,
+                    ),
+                    child: Text(
+                      catatan.isNotEmpty
+                          ? 'Catatan : ' + catatan
+                          : 'Catatan : -',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 5,
                       style: textTheme.bodyMedium,
                     ),
                   ),

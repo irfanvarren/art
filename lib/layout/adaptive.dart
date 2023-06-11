@@ -372,6 +372,7 @@ class _MobileNavState extends State<_MobileNav> with TickerProviderStateMixin {
   String selectedDestination = '';
   late String destination; // = widget.destination;
   int selectedIndex = 0;
+  bool fabClosed = false;
   @override
   void initState() {
     super.initState();
@@ -428,6 +429,12 @@ class _MobileNavState extends State<_MobileNav> with TickerProviderStateMixin {
     _dropArrowController.dispose();
     _bottomAppBarController.dispose();
     super.dispose();
+  }
+
+  void changeFabClosed(bool closed) {
+    setState(() {
+      fabClosed = closed;
+    });
   }
 
   bool get _bottomDrawerVisible {
@@ -634,7 +641,8 @@ class _MobileNavState extends State<_MobileNav> with TickerProviderStateMixin {
                 padding: EdgeInsetsDirectional.only(bottom: 12),
                 child: _ReplyFab(
                     selectedDestination: selectedDestination,
-                    username: widget.username),
+                    username: widget.username,
+                    changeFabClosed: changeFabClosed),
               ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
@@ -651,6 +659,7 @@ class _NavigationRailHeader extends StatelessWidget {
   final ValueNotifier<bool> extended;
   final String selectedDestination;
   final String username;
+  void changeFabClosed(bool closed) {}
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -670,9 +679,11 @@ class _NavigationRailHeader extends StatelessWidget {
                   start: 8,
                 ),
                 child: _ReplyFab(
-                    extended: extended.value,
-                    selectedDestination: selectedDestination,
-                    username: username),
+                  extended: extended.value,
+                  selectedDestination: selectedDestination,
+                  username: username,
+                  changeFabClosed: changeFabClosed,
+                ),
               ),
               const SizedBox(height: 8),
             ],
@@ -756,9 +767,11 @@ class _ReplyFab extends StatefulWidget {
   const _ReplyFab(
       {this.extended = false,
       required this.selectedDestination,
-      required this.username});
+      required this.username,
+      required this.changeFabClosed});
   final String username;
   final bool extended;
+  final Function(bool) changeFabClosed;
   final String selectedDestination;
 
   @override
@@ -903,10 +916,8 @@ class _ReplyFabState extends State<_ReplyFab>
             editId: '',
           );
         } else {
-          openedPage = ComposePage(
-            isEdit: false,
-            editId: '',
-          );
+          openedPage =
+              ComposePage(isEdit: false, editId: '', username: widget.username);
         }
         return OpenContainer(
           openBuilder: (context, closedContainer) {
@@ -916,8 +927,12 @@ class _ReplyFabState extends State<_ReplyFab>
           closedShape: circleFabBorder,
           closedColor: theme.colorScheme.secondary,
           closedElevation: 6,
+          onClosed: (data) {
+            widget.changeFabClosed(true);
+          },
           closedBuilder: (context, openContainer) {
             //print('closed');
+            //
             return Tooltip(
               message: tooltip,
               child: InkWell(
