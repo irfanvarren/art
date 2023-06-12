@@ -9,32 +9,51 @@ import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart' as path;
+import 'package:url_launcher/url_launcher.dart';
 
 class ComposePage extends StatefulWidget {
   final bool? isEdit;
+  final bool? isDone;
   final bool? isRepost;
   final String? editId;
   final String? username;
   ComposePage(
-      {super.key, this.isEdit, this.editId, this.isRepost, this.username}) {
+      {super.key,
+      this.isEdit,
+      this.isDone,
+      this.editId,
+      this.isRepost,
+      this.username}) {
     //initializeNotification();
   }
   @override
   _ComposePageState createState() => _ComposePageState(
-      isEditNull: isEdit, editIdNull: editId, isRepostNull: isRepost);
+      isEditNull: isEdit,
+      isDoneNull: isDone,
+      editIdNull: editId,
+      isRepostNull: isRepost);
 }
 
 class _ComposePageState extends State<ComposePage> {
   bool? isRepostNull;
   bool? isEditNull;
+  bool? isDoneNull;
   String? editIdNull;
 
   _ComposePageState(
-      {required this.isRepostNull, this.isEditNull, this.editIdNull});
+      {required this.isRepostNull,
+      this.isEditNull,
+      this.isDoneNull,
+      this.editIdNull});
 
   int selectedIndex = -1;
   late List<Product> products = [];
   final TextEditingController _ppController = TextEditingController();
+  final TextEditingController _phController = TextEditingController();
   final TextEditingController _namaBarangController = TextEditingController();
   final TextEditingController _jumlahBarangController = TextEditingController();
   final TextEditingController _satuanController = TextEditingController();
@@ -45,15 +64,20 @@ class _ComposePageState extends State<ComposePage> {
 
   bool isEdit = false;
   bool isRepost = false;
+  bool isDone = false;
   String editId = '';
   String selectedClientRef = '';
   String selectedClientName = '';
   Client? selectedClient;
   late String? username;
+  List<File> selectedFiles = [];
+  String filesText = '';
+  List<dynamic> existedFiles = [];
   @override
   void initState() {
     super.initState();
     isEdit = isEditNull ?? false;
+    isDone = isDoneNull ?? false;
     isRepost = isRepostNull ?? false;
     editId = editIdNull!;
     username = widget.username ?? 'admin';
@@ -106,22 +130,79 @@ class _ComposePageState extends State<ComposePage> {
     );
   }
 
-  void _submitForm(BuildContext context, bool isEdit, String editId) {
+  Future<void> selectFiles() async {
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.any, allowMultiple: true);
+
+    if (result != null && result.files.isNotEmpty) {
+      //setState(() {
+      selectedFiles = result.files.map((file) => File(file.path!)).toList();
+      //});
+    }
+    setState(() {
+      selectedFiles;
+    });
+  }
+
+  void _submitForm(BuildContext context, bool isEdit, String editId) async {
     //scheduleNotification();
     // Form is valid, proceed with data submission
 
     // Get the form values
+    if (selectedClientRef.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error, klien belum dipilih')),
+      );
+      return;
+    }
     DocumentReference klienRef =
         FirebaseFirestore.instance.collection('clients').doc(selectedClientRef);
 
     String namaKlien = selectedClientName;
     String noPp = _ppController.text;
+    String noPh = _phController.text;
     String namaBarang = _namaBarangController.text;
     String jumlahBarang = _jumlahBarangController.text;
     String satuan = _satuanController.text;
     String catatan = _catatanController.text;
     List<Map<String, dynamic>> productMaps =
         products.map((product) => product.toMap()).toList();
+    List<String> uploadedFiles = [];
+    if (selectedFiles.isNotEmpty) {
+      try {
+        // Create a reference to the Firebase Cloud Storage bucket
+        final storageRef = FirebaseStorage.instance.ref();
+
+        for (var file in selectedFiles) {
+          // Generate a unique file name
+          String filePath = file.path;
+          String fileName = path.basenameWithoutExtension(filePath) +
+              '-' +
+              DateTime.now().millisecondsSinceEpoch.toString();
+          String fileType = path.extension(filePath);
+          fileName += fileType;
+
+          // Create a reference to the file in Firebase Cloud Storage
+          final fileRef = storageRef.child(fileName);
+
+          // Upload the file to Firebase Cloud Storage
+          final uploadTask = await fileRef.putFile(file);
+          uploadedFiles.add(fileName);
+          print('File uploaded successfully: $fileName');
+        }
+
+        print('All files uploaded successfully.');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error, terjadi kesalahan saat mengupload file')),
+        );
+        print('An error occurred during file upload: $e');
+        return;
+      }
+    }
+
+    print(uploadedFiles);
 
     if (isEdit) {
       List<String> mappedList = products
@@ -147,28 +228,34 @@ class _ComposePageState extends State<ComposePage> {
 
         dataUpdate = {
           'no_pp': noPp,
+          'no_ph': noPh,
           'klien': klienRef,
           'nama_klien': namaKlien,
           'nama_barang': namaBarangJoin,
           'barang': productMaps,
           'catatan': catatan,
-          'files': [],
           'selesai': false,
           'prioritas': false,
           'tgl_edit': Timestamp.now(),
           'tgl_notifikasi': tglNotifikasi
         };
+        if (uploadedFiles.isNotEmpty) {
+          dataUpdate['files'] = uploadedFiles;
+        }
       } else {
         dataUpdate = {
           'no_pp': noPp,
+          'no_ph': noPh,
           'klien': klienRef,
           'nama_klien': namaKlien,
           'nama_barang': namaBarangJoin,
           'barang': productMaps,
           'catatan': catatan,
-          'files': [],
           'tgl_edit': Timestamp.now(),
         };
+        if (uploadedFiles.isNotEmpty) {
+          dataUpdate['files'] = uploadedFiles;
+        }
       }
       FirebaseFirestore.instance
           .collection('price_quotes')
@@ -227,7 +314,7 @@ class _ComposePageState extends State<ComposePage> {
         'barang': productMaps,
         'catatan': catatan,
         'username': username,
-        'files': [],
+        'files': uploadedFiles,
         'tgl_buat': Timestamp.now(),
         'tgl_edit': Timestamp.now(),
         'tgl_notifikasi': tglNotifikasi,
@@ -279,6 +366,7 @@ class _ComposePageState extends State<ComposePage> {
             namaKlien = klienSnapshot.data()!['nama_klien'];
             selectedClientName = namaKlien;
             selectedClientRef = klienSnapshot.id;
+
             clientRef = Client(
               id: klienSnapshot.id,
               namaKlien: namaKlien,
@@ -293,9 +381,15 @@ class _ComposePageState extends State<ComposePage> {
         });
         String catatan = priceQuoteData['catatan'];
         String noPp = priceQuoteData['no_pp'];
+        List<dynamic> filesList = priceQuoteData['files'];
         _catatanController.text = catatan;
         _ppController.text = noPp;
-
+        if (isDone) {
+          String noPh = priceQuoteData['no_ph'];
+          _phController.text = noPh;
+        }
+        filesText = filesList.length.toString();
+        existedFiles = filesList;
         if (priceQuoteData['barang'] != null) {
           List<Map<String, dynamic>> dataBarang =
               List<Map<String, dynamic>>.from(
@@ -331,6 +425,7 @@ class _ComposePageState extends State<ComposePage> {
 
     if (arguments != null) {
       isEdit = arguments is Map<String, dynamic> ? arguments['edit'] : false;
+      isDone = arguments is Map<String, dynamic> ? arguments['done'] : false;
       isRepost =
           arguments is Map<String, dynamic> ? arguments['repost'] : false;
       editId = arguments is Map<String, dynamic> ? arguments['id'] : '';
@@ -397,6 +492,33 @@ class _ComposePageState extends State<ComposePage> {
                                         Theme.of(context).textTheme.bodyMedium,
                                   ),
                                 ),
+
+                                if (isDone) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 12, top: 12),
+                                    child: Text('No. Penawaran Harga',
+                                        textAlign: TextAlign.left,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontFamily: 'Arial',
+                                            fontWeight: FontWeight.bold)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: TextField(
+                                      controller: _phController,
+                                      decoration:
+                                          const InputDecoration.collapsed(
+                                        hintText: 'No. Penawaran Harga',
+                                      ),
+                                      autofocus: false,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
+                                    ),
+                                  ),
+                                ],
                                 Padding(
                                   padding:
                                       const EdgeInsets.only(left: 12, top: 12),
@@ -472,12 +594,57 @@ class _ComposePageState extends State<ComposePage> {
                                     },
                                   ),
                                 ),
-                                //search
-                                Container(
-                                  child: ItemFormScreen(
-                                    products: products,
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 12, top: 12, bottom: 12),
+                                  child: Text('File Penawaran Harga',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontFamily: 'Arial',
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                                ExistedFilesList(existedFiles: existedFiles),
+
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: Row(
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: selectFiles,
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              vertical: 12.0, horizontal: 16.0),
+                                          child: Text(
+                                            'Pilih File',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10.0,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 8,
+                                      ),
+                                      if (selectedFiles.isNotEmpty) ...[
+                                        GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                selectedFiles = [];
+                                              });
+                                            },
+                                            child: Icon(Icons.clear))
+                                      ],
+                                      Text(selectedFiles.isNotEmpty
+                                          ? selectedFiles.length.toString() +
+                                              ' file dipilih'
+                                          : '')
+                                    ],
                                   ),
                                 ),
+                                //search
+
                                 const _SectionDivider(),
                                 Padding(
                                   padding:
@@ -501,6 +668,11 @@ class _ComposePageState extends State<ComposePage> {
                                     autofocus: false,
                                     style:
                                         Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ),
+                                Container(
+                                  child: ItemFormScreen(
+                                    products: products,
                                   ),
                                 ),
                               ],
@@ -536,6 +708,77 @@ class _ComposePageState extends State<ComposePage> {
             );
           }
         });
+  }
+}
+
+class ExistedFilesList extends StatefulWidget {
+  final List<dynamic> existedFiles;
+
+  const ExistedFilesList({super.key, required this.existedFiles});
+  @override
+  _ExistedFilesListState createState() => _ExistedFilesListState();
+}
+
+class _ExistedFilesListState extends State<ExistedFilesList> {
+  late List<dynamic> fileNames = widget.existedFiles;
+
+  @override
+  Widget build(BuildContext context) {
+    print(fileNames);
+    if (fileNames.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: fileNames.length,
+          itemBuilder: (context, index) {
+            String fileName = fileNames[index];
+            return ListTile(
+              dense: true,
+              title: Text(
+                (index + 1).toString() + '. ' + fileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                ),
+              ),
+              onTap: () => generateDownloadUrl(fileName),
+            );
+          },
+        ),
+      );
+    } else {
+      return Container();
+    }
+  }
+
+  Future<void> generateDownloadUrl(String fileName) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref(fileName);
+      String downloadUrl = await storageRef.getDownloadURL();
+
+      // Use the download URL as needed (e.g., navigate to a web view to display the file)
+      // print('Download URL for $fileName: $downloadUrl');
+
+      //if (await canLaunchUrl(Uri.parse(downloadUrl))) {
+
+      //} else {
+      print('Could not launch URL: $downloadUrl');
+      //}
+
+      final bool nativeAppLaunchSucceeded = await launchUrl(
+          Uri.parse(downloadUrl),
+          mode: LaunchMode.externalNonBrowserApplication);
+      if (!nativeAppLaunchSucceeded) {
+        await launchUrl(
+          Uri.parse(downloadUrl),
+          mode: LaunchMode.inAppWebView,
+        );
+      }
+    } catch (e) {
+      print('Error generating download URL: $e');
+    }
   }
 }
 
@@ -806,6 +1049,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   _ItemFormScreenState({required this.products});
 
   final TextEditingController _ppController = TextEditingController();
+  final TextEditingController _phController = TextEditingController();
   final TextEditingController _namaKlienController = TextEditingController();
   final TextEditingController _namaBarangController = TextEditingController();
   final TextEditingController _jumlahBarangController = TextEditingController();

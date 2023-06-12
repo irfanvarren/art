@@ -249,7 +249,7 @@ class _DesktopNavState extends State<_DesktopNav>
                   widget.destinations.indexWhere((destination) {
                 return destination.type == 'all';
               });*/
-              final selectedIndex = 0;
+              int selectedIndex = 0;
               return Container(
                 color: Theme.of(context).navigationRailTheme.backgroundColor,
                 child: SingleChildScrollView(
@@ -545,8 +545,8 @@ class _MobileNavState extends State<_MobileNav> with TickerProviderStateMixin {
               ),
           ],
           extended: false,
-          selectedIconTheme: IconThemeData(color: ui.Color(0xFF6E6B78)),
-          selectedLabelTextStyle: TextStyle(color: ui.Color(0xFF6E6B78)),
+          selectedIconTheme: IconThemeData(color: ui.Color(0xFFC55B11)),
+          selectedLabelTextStyle: TextStyle(color: ui.Color(0xFFC55B11)),
           labelType: NavigationRailLabelType.none,
           leading: const SizedBox(),
           selectedIndex: selectedIndex,
@@ -555,7 +555,7 @@ class _MobileNavState extends State<_MobileNav> with TickerProviderStateMixin {
               selectedIndex = index;
               selectedDestination = widget.destinations[selectedIndex].type;
               destination = selectedDestination;
-              print('on destination selected');
+              print('on destination selected' + selectedIndex.toString());
               print(destination);
             });
             widget.onItemTapped(
@@ -819,7 +819,8 @@ class _ReplyFabState extends State<_ReplyFab>
     final theme = Theme.of(context);
     const circleFabBorder = CircleBorder();
     String replyDestination = 'clients';
-    if (widget.selectedDestination != null) {
+    if (widget.selectedDestination != null &&
+        widget.selectedDestination.isNotEmpty) {
       replyDestination = widget.selectedDestination;
     }
     /*
@@ -916,9 +917,13 @@ class _ReplyFabState extends State<_ReplyFab>
             editId: '',
           );
         } else {
-          openedPage =
-              ComposePage(isEdit: false, editId: '', username: widget.username);
+          openedPage = ComposePage(
+              isEdit: false,
+              isDone: false,
+              editId: '',
+              username: widget.username);
         }
+
         return OpenContainer(
           openBuilder: (context, closedContainer) {
             return openedPage;

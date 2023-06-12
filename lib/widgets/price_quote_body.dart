@@ -182,6 +182,7 @@ class _MailboxBodyState extends State<MailboxBody> {
             noPh: document['no_ph'],
             namaBarang: document['nama_barang'],
             barang: document['barang'] as List<dynamic>,
+            files: document['files'] as List<dynamic>,
             catatan: document['catatan'],
             klienRef:
                 document['klien'] as DocumentReference<Map<String, dynamic>>,
@@ -211,6 +212,7 @@ class _MailboxBodyState extends State<MailboxBody> {
             price_quotes.add(price_quote);
           }
         });
+
         allObjects['data'] = price_quotes;
 
         List<Client> clients = [];
@@ -393,141 +395,150 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
   }
 
   Future<void> doneEmail(String documentId) async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Masukkan No PH :'),
-        content: Row(children: [
-          Expanded(
-            child: TextField(
-              controller: _noPhController,
-              onTap: () {},
-              decoration: const InputDecoration.collapsed(
-                fillColor: Colors.white,
-                hintStyle: TextStyle(fontSize: 16),
-                hintText: 'No. PH...',
+    if (documentId.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Masukkan No PH :'),
+          content: Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _noPhController,
+                onTap: () {},
+                decoration: const InputDecoration.collapsed(
+                  fillColor: Colors.white,
+                  hintStyle: TextStyle(fontSize: 16),
+                  hintText: 'No. PH...',
+                ),
+                autofocus: true,
               ),
-              autofocus: true,
             ),
-          ),
-          Text(doneError)
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Tidak'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                // Get a reference to the document you want to update
-                DocumentReference documentReference = FirebaseFirestore.instance
-                    .collection('price_quotes')
-                    .doc(documentId);
+            Text(doneError)
+          ]),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Tidak'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  // Get a reference to the document you want to update
+                  DocumentReference documentReference = await FirebaseFirestore
+                      .instance
+                      .collection('price_quotes')
+                      .doc(documentId);
 
-                // Update the document with the new data
-                if (_noPhController.text.isNotEmpty) {
-                  await documentReference
-                      .update({'selesai': true, 'no_ph': _noPhController.text});
-                } else {
-                  await documentReference.update({'selesai': true});
+                  // Update the document with the new data
+                  if (_noPhController.text.isNotEmpty) {
+                    documentReference.update(
+                        {'selesai': true, 'no_ph': _noPhController.text});
+                  } else {
+                    documentReference.update({'selesai': true});
+                  }
+                  widget.triggerStreamBuilder(destination, filterClient,
+                      filterBarang, filterPp, filterPh);
+
+                  print('Data berhasil disimpan');
+                } catch (e) {
+                  print('Error !');
                 }
-                widget.triggerStreamBuilder(destination, filterClient,
-                    filterBarang, filterPp, filterPh);
-
-                print('Data berhasil disimpan');
-              } catch (e) {
-                print('Error !');
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text('Ya'),
-          ),
-        ],
-      ),
-    );
+                Navigator.of(context).pop();
+              },
+              child: Text('Ya'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> deleteEmail(String documentId) async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirm'),
-        content: Text('Apakah anda yakin ingin menghapus data ini?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Tidak'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                // Get a reference to the document you want to update
-                DocumentReference documentReference = FirebaseFirestore.instance
-                    .collection('price_quotes')
-                    .doc(documentId);
+    if (documentId.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Confirm'),
+          content: Text('Apakah anda yakin ingin menghapus data ini?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Tidak'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  // Get a reference to the document you want to update
+                  DocumentReference documentReference = FirebaseFirestore
+                      .instance
+                      .collection('price_quotes')
+                      .doc(documentId);
 
-                // Update the document with the new data
-                await documentReference.delete();
-                widget.triggerStreamBuilder(destination, filterClient,
-                    filterBarang, filterPp, filterPh);
-                print('Data berhasil disimpan');
-              } catch (e) {
-                print('Error !');
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text('Ya'),
-          ),
-        ],
-      ),
-    );
+                  // Update the document with the new data
+                  await documentReference.delete();
+                  widget.triggerStreamBuilder(destination, filterClient,
+                      filterBarang, filterPp, filterPh);
+                  print('Data berhasil disimpan');
+                } catch (e) {
+                  print('Error !');
+                }
+                Navigator.of(context).pop();
+              },
+              child: Text('Ya'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> deleteClient(String documentId) async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirm'),
-        content: Text('Apakah anda yakin ingin menghapus data ini?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('Tidak'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                // Get a reference to the document you want to update
-                DocumentReference documentReference = FirebaseFirestore.instance
-                    .collection('clients')
-                    .doc(documentId);
+    if (documentId.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Confirm'),
+          content: Text('Apakah anda yakin ingin menghapus data ini?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Tidak'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  // Get a reference to the document you want to update
+                  DocumentReference documentReference = FirebaseFirestore
+                      .instance
+                      .collection('clients')
+                      .doc(documentId);
 
-                // Update the document with the new data
-                await documentReference.delete();
-                // widget.triggerStreamBuilder(
-                //     destination, filterClient, filterBarang);
-                setState(() {
-                  selectedClientData = null;
-                  filteredClientData = null;
-                });
-                print('Data berhasil disimpan');
-              } catch (e) {
-                print('Error !');
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text('Ya'),
-          ),
-        ],
-      ),
-    );
+                  // Update the document with the new data
+                  await documentReference.delete();
+                  // widget.triggerStreamBuilder(
+                  //     destination, filterClient, filterBarang);
+                  setState(() {
+                    selectedClientData = null;
+                    filteredClientData = null;
+                  });
+                  print('Data berhasil disimpan');
+                } catch (e) {
+                  print('Error !');
+                }
+                Navigator.of(context).pop();
+              },
+              child: Text('Ya'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> unstarEmail(
@@ -572,9 +583,13 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
           var currentRoute = route.settings.name;
 
           if (currentRoute != MyApp.composeRoute) {
-            desktopMailNavKey.currentState!.restorablePushNamed(
-                MyApp.composeRoute,
-                arguments: {'edit': true, 'repost': isDone, 'id': id});
+            desktopMailNavKey.currentState!
+                .restorablePushNamed(MyApp.composeRoute, arguments: {
+              'edit': true,
+              'done': false,
+              'repost': false,
+              'id': id
+            });
           }
           return true;
         },
@@ -583,10 +598,22 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (context) =>
-                ComposePage(isEdit: true, editId: id, isRepost: isDone)),
+            builder: (context) => ComposePage(
+                isEdit: true, isDone: isDone, editId: id, isRepost: false)),
       );
     }
+    widget.triggerStreamBuilder(
+        destination, filterClient, filterBarang, filterPp, filterPh);
+  }
+
+  Future<void> openRepostPage(String id, bool isDone) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (context) => ComposePage(
+              isEdit: true, isDone: isDone, editId: id, isRepost: true)),
+    );
+
     widget.triggerStreamBuilder(
         destination, filterClient, filterBarang, filterPp, filterPh);
   }
@@ -738,7 +765,6 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
       // Add the field value to the list
       fieldValues.add(fieldValue);
     });
-    print('fieldvalue' + fieldValues.toString());
     return fieldValues;
   }
 
@@ -855,6 +881,7 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                           key: clientDropdownKey,
                           items: clientsList,
                           selectedItem: selectedClientData,
+
                           itemAsString: (item) {
                             String namaKlien = '';
                             if (item.singkatan.isNotEmpty) {
@@ -938,10 +965,25 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                                 items: ppList,
                                 selectedItem:
                                     filterPp.isEmpty ? null : filterPp,
+                                dropdownBuilder: (context, selectedItem) {
+                                  return Container(
+                                      child: Text(
+                                    selectedItem ?? 'No. PP...',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontFamily: 'Arial',
+                                        fontSize: 16,
+                                        color:
+                                            Color.fromARGB(255, 112, 112, 112)),
+                                  ) // Adjust the height as needed
+                                      );
+                                },
+
                                 dropdownDecoratorProps: DropDownDecoratorProps(
                                     textAlignVertical: TextAlignVertical.center,
                                     dropdownSearchDecoration: InputDecoration(
-                                        hintText: 'Cari No. PP...',
+                                        hintText: 'No. PP...',
                                         filled: true,
                                         fillColor: Colors.white,
                                         prefixIcon: filterPp.isEmpty
@@ -1000,10 +1042,24 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                                 items: phList,
                                 selectedItem:
                                     filterPh.isEmpty ? null : filterPh,
+                                dropdownBuilder: (context, selectedItem) {
+                                  return Container(
+                                      child: Text(
+                                    selectedItem ?? 'No. PH...',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontFamily: 'Arial',
+                                        fontSize: 16,
+                                        color:
+                                            Color.fromARGB(255, 112, 112, 112)),
+                                  ) // Adjust the height as needed
+                                      );
+                                },
                                 dropdownDecoratorProps: DropDownDecoratorProps(
                                     textAlignVertical: TextAlignVertical.center,
                                     dropdownSearchDecoration: InputDecoration(
-                                        hintText: 'Cari No. PH...',
+                                        hintText: 'No. PH...',
                                         filled: true,
                                         fillColor: Colors.white,
                                         prefixIcon: filterPh.isEmpty
@@ -1216,6 +1272,8 @@ class CardPreviewBodyState extends State<CardPreviewBody> {
                             },
                             openEditPage: () => openEditPage(priceQuote.id,
                                 parentContext, isDesktop, priceQuote.selesai),
+                            openRepostPage: () => openRepostPage(
+                                priceQuote.id, priceQuote.selesai),
                             isStarred: priceQuote.prioritas,
                             onStarredMailbox: false,
                           );

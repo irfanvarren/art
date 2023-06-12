@@ -7,7 +7,7 @@ import 'package:art/constants.dart';
 import 'package:art/routes.dart';
 import 'package:art/pages/price_quote_add_page.dart';
 import 'package:art/data/options.dart';
-import 'package:art/data/firebase_options.dart';
+import 'package:art/firebase_options.dart';
 import 'package:art/themes/app_theme_data.dart';
 import 'package:art/routes.dart' as routes;
 import 'package:flutter/scheduler.dart' show timeDilation;

@@ -42,7 +42,7 @@ class Email {
   final bool prioritas;
   final bool selesai;
   Client? klien;
-  List<String> files;
+  List<dynamic> files;
 
   Map<String, dynamic> toJson() {
     return {

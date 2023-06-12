@@ -8,7 +8,8 @@ import 'package:art/pages/price_quote_add_page.dart';
 import 'package:art/model/price_quote_model.dart';
 import 'package:art/model/price_quote_store.dart';
 import 'package:intl/intl.dart';
-
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 //import 'package:provider/provider.dart';
 
 //const _assetsPackage = 'packages';
@@ -25,6 +26,7 @@ class MailPreviewCard extends StatelessWidget {
     required this.onDone,
     required this.onStar,
     required this.openEditPage,
+    required this.openRepostPage,
     required this.isStarred,
     required this.onStarredMailbox,
     required this.namaBarang,
@@ -39,6 +41,7 @@ class MailPreviewCard extends StatelessWidget {
   final VoidCallback onDone;
   final VoidCallback onStar;
   final VoidCallback openEditPage;
+  final VoidCallback openRepostPage;
   final bool isStarred;
   final bool onStarredMailbox;
 
@@ -71,12 +74,14 @@ class MailPreviewCard extends StatelessWidget {
           onStar: onStar,
           onDelete: onDelete,
           openEditPage: openEditPage,
+          openRepostPage: openRepostPage,
         );
 
         if (isDesktop) {
           return mailPreview;
         } else {
-          return Dismissible(
+          return mailPreview;
+          /*Dismissible(
             key: ObjectKey(email),
             dismissThresholds: const {
               DismissDirection.startToEnd: 0.8,
@@ -86,22 +91,22 @@ class MailPreviewCard extends StatelessWidget {
               switch (direction) {
                 case DismissDirection.endToStart:
                   if (onStarredMailbox) {
-                    onStar();
+                    //  onStar();
                   }
                   break;
                 case DismissDirection.startToEnd:
-                  onDone();
+                  // onDone();
                   break;
                 default:
               }
             },
-            background: _DismissibleContainer(
+            /*background: _DismissibleContainer(
               icon: 'twotone_delete',
               backgroundColor: colorScheme.primary,
               iconColor: Colors.blue,
               alignment: Alignment.centerLeft,
               padding: const EdgeInsetsDirectional.only(start: 20),
-            ),
+            ),*/
             confirmDismiss: (direction) async {
               if (direction == DismissDirection.endToStart) {
                 if (onStarredMailbox) {
@@ -113,7 +118,7 @@ class MailPreviewCard extends StatelessWidget {
                 return true;
               }
             },
-            secondaryBackground: _DismissibleContainer(
+            /* secondaryBackground: _DismissibleContainer(
               icon: 'twotone_star',
               backgroundColor: isStarred
                   ? colorScheme.secondary
@@ -123,9 +128,9 @@ class MailPreviewCard extends StatelessWidget {
                   : colorScheme.onBackground,
               alignment: Alignment.centerRight,
               padding: const EdgeInsetsDirectional.only(end: 20),
-            ),
+            ),*/
             child: mailPreview,
-          );
+          );*/
         }
       },
     );
@@ -181,7 +186,8 @@ class _MailPreview extends StatelessWidget {
       this.onDone,
       this.onStar,
       this.onDelete,
-      this.openEditPage});
+      this.openEditPage,
+      this.openRepostPage});
 
   final String id;
   final String username;
@@ -193,6 +199,7 @@ class _MailPreview extends StatelessWidget {
   final VoidCallback? onDone;
   final VoidCallback? onDelete;
   final VoidCallback? openEditPage;
+  final VoidCallback? openRepostPage;
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -232,6 +239,9 @@ class _MailPreview extends StatelessWidget {
             priceQuoteTitle += pp_ph.join(' | ');
           }
 
+          List<dynamic> existedFiles = email.files;
+
+          print('existed files' + existedFiles.toString());
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: constraints.maxHeight),
             child: Padding(
@@ -265,7 +275,8 @@ class _MailPreview extends StatelessWidget {
                               onDone: onDone,
                               onStar: onStar,
                               onDelete: onDelete,
-                              openEditPage: openEditPage))
+                              openEditPage: openEditPage,
+                              openRepostPage: openRepostPage))
                         else
                           Padding(
                             padding: EdgeInsets.only(left: 8),
@@ -284,6 +295,32 @@ class _MailPreview extends StatelessWidget {
                     ),
                   ),
                   Text(priceQuoteTitle, style: textTheme.headlineSmall),
+                  const SizedBox(height: 8),
+                  Flex(
+                    direction: Axis.horizontal,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        child: Text(
+                          'files : ' + (existedFiles.isNotEmpty ? '' : '-'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 8,
+                      ),
+                      Flexible(
+                        flex: 1,
+                        fit: FlexFit.loose,
+                        child: Container(
+                          child: ExistedFilesList(existedFiles: existedFiles),
+                        ),
+                      ),
+
+                      /* Flexible(
+                        child: ExistedFilesList(existedFiles: existedFiles),
+                      ),*/
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsetsDirectional.only(
@@ -333,6 +370,77 @@ class _MailPreview extends StatelessWidget {
   }
 }
 
+class ExistedFilesList extends StatefulWidget {
+  final List<dynamic> existedFiles;
+
+  const ExistedFilesList({super.key, required this.existedFiles});
+  @override
+  _ExistedFilesListState createState() => _ExistedFilesListState();
+}
+
+class _ExistedFilesListState extends State<ExistedFilesList> {
+  late List<dynamic> fileNames = widget.existedFiles;
+
+  @override
+  Widget build(BuildContext context) {
+    print(fileNames);
+    if (fileNames.isNotEmpty) {
+      return ListView.builder(
+        shrinkWrap: true,
+        itemCount: fileNames.length,
+        itemBuilder: (context, index) {
+          String fileName = fileNames[index];
+          return GestureDetector(
+            //   onTap: onStar,
+            child: Padding(
+              padding: EdgeInsets.only(top: index == 0 ? 0 : 10),
+              child: Text(
+                (index + 1).toString() + '. ' + fileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            onTap: () => generateDownloadUrl(fileName),
+          );
+        },
+      );
+    } else {
+      return Container();
+    }
+  }
+
+  Future<void> generateDownloadUrl(String fileName) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref(fileName);
+      String downloadUrl = await storageRef.getDownloadURL();
+
+      // Use the download URL as needed (e.g., navigate to a web view to display the file)
+      // print('Download URL for $fileName: $downloadUrl');
+
+      //if (await canLaunchUrl(Uri.parse(downloadUrl))) {
+
+      //} else {
+      print('Could not launch URL: $downloadUrl');
+      //}
+
+      final bool nativeAppLaunchSucceeded = await launchUrl(
+          Uri.parse(downloadUrl),
+          mode: LaunchMode.externalNonBrowserApplication);
+      if (!nativeAppLaunchSucceeded) {
+        await launchUrl(
+          Uri.parse(downloadUrl),
+          mode: LaunchMode.inAppWebView,
+        );
+      }
+    } catch (e) {
+      print('Error generating download URL: $e');
+    }
+  }
+}
+
 class _PicturePreview extends StatelessWidget {
   const _PicturePreview();
 
@@ -366,7 +474,8 @@ class _MailPreviewActionBar extends StatelessWidget {
       this.onStar,
       this.onDelete,
       this.onDone,
-      this.openEditPage});
+      this.openEditPage,
+      this.openRepostPage});
   final String id;
   final bool isStarred;
   final bool isDone;
@@ -374,6 +483,7 @@ class _MailPreviewActionBar extends StatelessWidget {
   final VoidCallback? onDone;
   final VoidCallback? onDelete;
   final VoidCallback? openEditPage;
+  final VoidCallback? openRepostPage;
 
   @override
   Widget build(BuildContext context) {
@@ -461,31 +571,34 @@ class _MailPreviewActionBar extends StatelessWidget {
           onTap: openEditPage,
           child: Padding(
             padding: EdgeInsets.only(left: 8),
-            child: isDone
-                ? Row(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(top: 2, right: 3),
-                        child: ImageIcon(
-                          size: 20,
-                          const AssetImage(
-                            '$_iconAssetLocation/repost.png',
-                            // package: _assetsPackage,
-                          ),
-                          color: color,
-                        ),
-                      ),
-                      Text('repost', style: TextStyle(color: Colors.blue)),
-                    ],
-                  )
-                : Icon(
-                    Icons.edit,
-                    size: 20,
-                    color: Colors.blue,
-                  ),
+            child: Icon(
+              Icons.edit,
+              size: 20,
+              color: Colors.blue,
+            ),
           ),
         ),
-        const SizedBox(width: 12),
+        if (isDone) ...[
+          GestureDetector(
+            onTap: openRepostPage,
+            child: Row(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: ImageIcon(
+                    size: 20,
+                    const AssetImage(
+                      '$_iconAssetLocation/repost.png',
+                      // package: _assetsPackage,
+                    ),
+                    color: color,
+                  ),
+                ),
+                Text('repost', style: TextStyle(color: Colors.blue)),
+              ],
+            ),
+          ),
+        ]
       ],
     );
   }

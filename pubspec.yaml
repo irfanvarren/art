@@ -53,6 +53,9 @@ dependencies:
   flutter_background: ^1.2.0
   workmanager: ^0.5.1
   excel: ^2.1.0
+  file_picker: ^5.3.2
+  firebase_storage: ^11.2.2
+  url_launcher: ^6.1.11
 
 dev_dependencies:
   flutter_test:
