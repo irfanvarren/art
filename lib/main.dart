@@ -20,6 +20,7 @@ import 'package:art/model/price_quote_store.dart';
 import 'dart:async';
 import 'package:flutter_background/flutter_background.dart' as background;
 import 'package:workmanager/workmanager.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -29,6 +30,7 @@ void main() async {
       defaultTargetPlatform != TargetPlatform.windows) {
     WidgetsFlutterBinding.ensureInitialized();
     await initializeFirebase();
+    FirebaseFirestore.instance.settings = Settings(persistenceEnabled: false);
     FlutterError.onError = (errorDetails) {
       FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
     };

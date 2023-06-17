@@ -54,6 +54,7 @@ class _MailboxBodyState extends State<MailboxBody> {
     dataList = [];
     filterProduct = '';
     destination = widget.destination;
+    FirebaseFirestore.instance.settings = Settings(persistenceEnabled: false);
     getStream(widget.destination, null, null, null, null);
 
 // Assuming you have a stream called myStream of type Stream<QuerySnapshot<dynamic>>
