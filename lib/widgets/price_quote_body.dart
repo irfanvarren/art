@@ -142,6 +142,7 @@ class _MailboxBodyState extends State<MailboxBody> {
           myQuery = myQuery.where('no_ph', isEqualTo: filterPh);
         }
       }
+      myQuery = myQuery.orderBy('tgl_buat', descending: true);
       myStream = myQuery.snapshots();
     }
     //return
