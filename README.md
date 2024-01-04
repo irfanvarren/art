@@ -1,16 +1,19 @@
-# art
+Program penawaran harga untuk perusahaan PT Anugerah Rezeki Teknindo
 
-A new Flutter project.
+Aplikasi dibuat menggunakan framework flutter dengan database menggunakan firebase. Aplikasi akan dibuat untuk 2 jenis perangkat yaitu mobile dan desktop. Untuk memudahkan pengguna menginputkan data maka pengguna dapat menggunakan aplikasi versi desktop (pc), sedangkan untuk memudahkan melihat dan mengecek daftar penawaran harga dapat menggunakan aplikasi versi mobile. Kedua jenis aplikasi ini sama sama bisa digunakan untuk menginput data dan mengecek daftar penawaran harga.
 
-## Getting Started
+Tampilan Mobile (Android):
+![image](https://github.com/irfanvarren/art/assets/48541830/8501ff81-3b29-4b1a-9892-b06be760fc53)
 
-This project is a starting point for a Flutter application.
+Tampilan Desktop (Windows):
+![image](https://github.com/irfanvarren/art/assets/48541830/9029c018-420a-483e-96a6-7d179acd5d00)
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Adapun fitur yang terdapat pada aplikasi antara lain :
+⦁	Melihat daftar penawaran harga yang belum diproses
+⦁	Menginput data daftar penawaran harga ke database
+⦁	Upload file (gambar ataupun dokumen) 
+⦁	Mendapat notifikasi pengingat apabila daftar penawaran harga sudah melewati batas waktu 1 minggu setelah data di input
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Keterangan
+![image](https://github.com/irfanvarren/art/assets/48541830/cf627c51-b602-45ab-b55a-acd91c60fe9d)
