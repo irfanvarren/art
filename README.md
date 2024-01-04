@@ -9,10 +9,10 @@ Tampilan Desktop (Windows):
 ![image](https://github.com/irfanvarren/art/assets/48541830/9029c018-420a-483e-96a6-7d179acd5d00)
   
 
-Adapun fitur yang terdapat pada aplikasi antara lain :
-⦁	Melihat daftar penawaran harga yang belum diproses
-⦁	Menginput data daftar penawaran harga ke database
-⦁	Upload file (gambar ataupun dokumen) 
-⦁	Mendapat notifikasi pengingat apabila daftar penawaran harga sudah melewati batas waktu 1 minggu setelah data di input
+Adapun fitur yang terdapat pada aplikasi antara lain :  
+⦁	Melihat daftar penawaran harga yang belum diproses  
+⦁	Menginput data daftar penawaran harga ke database  
+⦁	Upload file (gambar ataupun dokumen)  
+⦁	Mendapat notifikasi pengingat apabila daftar penawaran harga sudah melewati batas waktu 1 minggu setelah data di input  
   
 ![image](https://github.com/irfanvarren/art/assets/48541830/cf627c51-b602-45ab-b55a-acd91c60fe9d)
